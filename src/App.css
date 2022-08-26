@@ -36,3 +36,18 @@
     transform: rotate(360deg);
   }
 }
+
+.page-container {
+  padding-top: 50px;
+}
+
+.price-feed-container {
+  /* background-color: red; */
+  border: 1px solid #282c34;
+  width: 80%;
+}
+
+.swap-container {
+  border: 1px solid #282c34;
+  width: 80%;
+}

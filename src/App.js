@@ -1,26 +1,13 @@
-// import logo from './logo.svg';
 import './App.css';
+import { Row, Col } from 'antd';
 
 function App() {
   return (
-    // <div className="App">
-    //   <header className="App-header">
-    //     <img src={logo} className="App-logo" alt="logo" />
-    //     <p>
-    //       Edit <code>src/App.js</code> and save to reload.
-    //     </p>
-    //     <a
-    //       className="App-link"
-    //       href="https://reactjs.org"
-    //       target="_blank"
-    //       rel="noopener noreferrer"
-    //     >
-    //       Learn React
-    //     </a>
-    //   </header>
-    // </div>
-    <div className='container'>
-      SWAP DEMO
+    <div className='container page-container'>
+      <Row>
+        <Col span={12} className='d-flex justify-content-center'><div className='price-feed-container'><h1>Price Feed</h1></div></Col>
+        <Col span={12} className='d-flex justify-content-center'><div className='swap-container'><h1>Swap</h1></div></Col>
+      </Row>
     </div>
   );
 }
