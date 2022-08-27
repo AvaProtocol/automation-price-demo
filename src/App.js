@@ -65,10 +65,10 @@ function App() {
     setAccounts(allAccounts);
   }
 
-  const onSubmitClicked = async () => {
+  const onSubmitClicked = async (ksmAmount) => {
     setSending(true);
     const api = await polkadotHelper.getPolkadotApi();
-    const extrinsic = api.tx.automationPrice.scheduleTransferTask(v4(), 'mgx:ksm', 1, 1, '68HXCiRMPD19obaN1Cnr93pHKRvdnfEHxJHYjV6enJNkdQTk', 50000000000);
+    const extrinsic = api.tx.automationPrice.scheduleTransferTask(v4(), 'mgx:ksm', 1, 1, '68HXCiRMPD19obaN1Cnr93pHKRvdnfEHxJHYjV6enJNkdQTk', ksmAmount * 10000000000);
     console.log('selectedAccount.address: ', selectedAccount.address);
     const { signer } = await web3FromAddress(selectedAccount.address);
     // console.log('sender: ', sender);
@@ -86,8 +86,9 @@ function App() {
     });
   }
 
-  const onFinish = () => {
-    onSubmitClicked();
+  const onFinish = (values) => {
+    console.log('values: ', values);
+    onSubmitClicked(_.toNumber(values.ksmAmount));
   }
 
   const onValuesChange = (values) => {
@@ -154,6 +155,9 @@ function App() {
                       </div>
                     </Col>
                   </Row>
+
+                  <div className='sell'>Sell KSM -10% below market</div>
+
                   { !selectedAccount && (
                     <div className='d-flex justify-content-center'>
                       <Button className="connect-wallet-button" onClick={onConnectWalletClicked}>Connect Wallet</Button>

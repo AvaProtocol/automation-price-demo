@@ -155,3 +155,12 @@ button.ant-btn.connect-wallet-button:hover {
   word-wrap: break-word;
   padding: 20px 40px;
 }
+
+.sell {
+  font-weight: 800;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 40px;
+  color: red;
+}
