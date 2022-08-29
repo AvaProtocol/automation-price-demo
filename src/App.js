@@ -28,12 +28,20 @@ function App() {
   useEffect( () => {
     setInterval(async () => {
       let prices = await subqueryHelper.getPrices();
+      const { timestamp, args: { value } } = prices[0];
+      swapForm.setFieldsValue({ price: convertToNumber(value) });
+
+      const api = await polkadotHelper.getPolkadotApi();
+      const price = await api.query.automationPrice.assetPrices('mgx:ksm');
+      if(moment(timestamp).minute() !== moment()) {
+        prices.unshift({ timestamp: moment().format('YYYY-MM-DDThh:mm:00.000'), args: { value: price.toString(), asset: 'mgx:ksm' } });
+      } else {
+        prices[0] = { timestamp: moment().format('YYYY-MM-DDThh:mm:00.000'), args: { value: price.toString(), asset: 'mgx:ksm' } };
+      }
+
       prices = _.slice(prices, 0, 10);
       setPrices(prices);
-
-      const { args: { value } } = prices[0];
-      swapForm.setFieldsValue({ price: convertToNumber(value) });
-    }, 1000);
+    }, 10000);
   }, [swapForm]);
 
   const priceRows = _.map(prices, (priceItem) => {
@@ -75,7 +83,7 @@ function App() {
     const unsub = await extrinsic.signAndSend(selectedAccount.address, { signer } , ({ status }) => {
       console.log('status.type: ', status.type);
       if (status.isFinalized || status.isInBlock) {
-        setExtrinsicStatus(`Status: ${status.type}, blockNumber: ${status.asInBlock}`);
+        setExtrinsicStatus(`Status: ${status.type}, blockNumber: ${ status.isFinalized ? status.asFinalized : status.asInBlock}`);
       } else {
         setExtrinsicStatus(`Status: ${status.type}`);
       }
