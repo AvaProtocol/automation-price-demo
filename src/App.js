@@ -13,6 +13,8 @@ import './App.css';
 
 const { Option } = Select;
 
+const PRICE_VOLATILITY_PERCENTAGE = 0.1;
+
 function App() {
 
   const [prices, setPrices] = useState([]);
@@ -102,7 +104,7 @@ function App() {
   const onValuesChange = (values) => {
     const ksmAmount = _.toNumber(values.ksmAmount);
     const price = _.toNumber(swapForm.getFieldValue('price'));
-    swapForm.setFieldsValue({ mgxAmount: ksmAmount * price });
+    swapForm.setFieldsValue({ mgxAmount: ksmAmount * price * (1-PRICE_VOLATILITY_PERCENTAGE) });
   }
 
   return (
@@ -164,7 +166,7 @@ function App() {
                     </Col>
                   </Row>
 
-                  <div className='sell'>Sell KSM -10% below market</div>
+                  <div className='sell'>{`Sell KSM -${100 * PRICE_VOLATILITY_PERCENTAGE}% below market`}</div>
 
                   { !selectedAccount && (
                     <div className='d-flex justify-content-center'>
