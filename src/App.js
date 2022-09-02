@@ -2,7 +2,7 @@ import { Row, Col, Input, Select, Button, Form } from 'antd';
 import { useEffect, useState } from 'react';
 import _ from 'lodash';
 import { v4 } from 'uuid';
-import moment from 'moment';
+import moment from 'moment-timezone';
 import { web3Accounts, web3Enable, web3FromAddress } from '@polkadot/extension-dapp';
 
 
@@ -13,16 +13,14 @@ import './App.css';
 
 const { Option } = Select;
 
-const PRICE_VOLATILITY_PERCENTAGE = 0.1;
-
 function App() {
-
   const [prices, setPrices] = useState([]);
   const [accountSelectorVisible, setAccountSelectorVisible] = useState(false);
   const [accounts, setAccounts] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState(null);
   const [extrinsicStatus, setExtrinsicStatus] = useState(null);
   const [sending, setSending] = useState(false);
+  const [priceVolatility, setPriceVolatility] = useState(null);
   const [swapForm] = Form.useForm();
 
   const convertToNumber = (value) => _.toNumber(_.replace(value, ',', ''));
@@ -30,15 +28,16 @@ function App() {
   useEffect( () => {
     setInterval(async () => {
       let prices = await subqueryHelper.getPrices();
-      const { timestamp, args: { value } } = prices[0];
-      swapForm.setFieldsValue({ price: convertToNumber(value) });
+      prices = _.filter(prices, ({ args: { asset }}) => asset === 'mgx:ksm');
+      prices = _.each(prices, (price) => price.timestamp = moment.utc(price.timestamp).format());
 
+      const { timestamp } = prices[0];
       const api = await polkadotHelper.getPolkadotApi();
       const price = await api.query.automationPrice.assetPrices('mgx:ksm');
       if(moment(timestamp).minute() !== moment()) {
-        prices.unshift({ timestamp: moment().format('YYYY-MM-DDThh:mm:00.000'), args: { value: price.toString(), asset: 'mgx:ksm' } });
+        prices.unshift({ timestamp: moment().format(), args: { value: price.toString(), asset: 'mgx:ksm' } });
       } else {
-        prices[0] = { timestamp: moment().format('YYYY-MM-DDThh:mm:00.000'), args: { value: price.toString(), asset: 'mgx:ksm' } };
+        prices[0] = { timestamp: prices[0].timestamp, args: { value: price.toString(), asset: 'mgx:ksm' } };
       }
 
       prices = _.slice(prices, 0, 10);
@@ -50,7 +49,7 @@ function App() {
     const { timestamp, args: { asset, value } } = priceItem;
     return (
       <tr key={moment(timestamp).toString()} className="price-row">
-        <th className="price-col price-first-col">{moment(timestamp).format('YYYY-MM-DD hh:mm:ss Z')}</th>
+        <th className="price-col price-first-col">{moment(timestamp).format()}</th>
         <th className="price-col">{asset}</th>
         <th className="price-col">{convertToNumber(value)}</th>
       </tr>
@@ -78,7 +77,14 @@ function App() {
   const onSubmitClicked = async (ksmAmount) => {
     setSending(true);
     const api = await polkadotHelper.getPolkadotApi();
-    const extrinsic = api.tx.automationPrice.scheduleTransferTask(v4(), 'mgx:ksm', 1, 1, '68HXCiRMPD19obaN1Cnr93pHKRvdnfEHxJHYjV6enJNkdQTk', ksmAmount * 10000000000);
+
+    const direction = priceVolatility > 0 ? 0 : 1;
+    console.log('priceVolatility: ', priceVolatility);
+    let triggerPercentage = Math.abs(Math.floor(priceVolatility * 100));
+    triggerPercentage = triggerPercentage < 1 ? 1 : triggerPercentage;
+    console.log('triggerPercentage: ', triggerPercentage);
+
+    const extrinsic = api.tx.automationPrice.scheduleTransferTask(v4(), 'mgx:ksm', direction, triggerPercentage, '68HXCiRMPD19obaN1Cnr93pHKRvdnfEHxJHYjV6enJNkdQTk', ksmAmount * 10000000000);
     console.log('selectedAccount.address: ', selectedAccount.address);
     const { signer } = await web3FromAddress(selectedAccount.address);
     // console.log('sender: ', sender);
@@ -102,9 +108,27 @@ function App() {
   }
 
   const onValuesChange = (values) => {
-    const ksmAmount = _.toNumber(values.ksmAmount);
+    const ksmAmount = _.toNumber(swapForm.getFieldValue('ksmAmount'));
     const price = _.toNumber(swapForm.getFieldValue('price'));
-    swapForm.setFieldsValue({ mgxAmount: ksmAmount * price * (1-PRICE_VOLATILITY_PERCENTAGE) });
+    if (_.isNumber(price) && price > 0 && currentPrice > 0) {
+      swapForm.setFieldsValue({ mgxAmount: ksmAmount * price });
+      setPriceVolatility(price / currentPrice - 1);
+    } else {
+      swapForm.setFieldsValue({ mgxAmount: undefined});
+      setPriceVolatility(null);
+    }
+  }
+  
+
+  let currentPrice = null;
+  if (!_.isEmpty(prices)) {
+    const { args: { value: currentPriceValue } } = prices[0];
+    currentPrice = convertToNumber(currentPriceValue);
+  }
+
+  let volatilityText = null;
+  if (priceVolatility) {
+    volatilityText = `Sell KSM ${Math.abs((100 * priceVolatility).toFixed(2))}% ${ priceVolatility > 0 ? 'above' : 'below' } market`;
   }
 
   return (
@@ -127,6 +151,7 @@ function App() {
             <Col span={12} className='d-flex justify-content-center'>
               <div className='swap-container'>
                 <h1>Swap</h1>
+                <div className="current-price">Current price: <span className="current-price-text">1 KSM = {currentPrice || '-'} MGX</span></div>
                 <Form
                   form={swapForm}
                   name="basic"
@@ -139,21 +164,20 @@ function App() {
                 >
                   <Row gutter={12}>
                     <Col span={12}>
-                      <Form.Item name="ksmAmount" rules={[{ required: true, message: 'Please input your ksm amount!' }]}
-                        >
-                        <Input value="123123" />
+                      <Form.Item name="ksmAmount" rules={[{ required: true, message: 'Please input your ksm amount!' }]}>
+                        <Input />
                       </Form.Item>
-                      <div style={{ marginBottom: 20}}>x</div>
+                      <div style={{ marginBottom: 20, fontWeight: 800, fontSize: 14 }}>X</div>
                       <Form.Item name="price">
-                        <Input value="123123" />
+                        <Input />
                       </Form.Item>
-                      <div style={{ marginBottom: 20}}>--------------------</div>
+                      <div className="split-line"></div>
                       <Form.Item name="mgxAmount">
-                        <Input value="123123" />
+                        <Input />
                       </Form.Item>
                     </Col>
                     <Col span={12}>
-                      <div style={{ marginBottom: 163 }}>
+                      <div style={{ marginBottom: 169 }}>
                         <Select className="token-select" defaultValue="ksm">
                           <Option value="ksm">KSM</Option>
                         </Select>
@@ -166,7 +190,7 @@ function App() {
                     </Col>
                   </Row>
 
-                  <div className='sell'>{`Sell KSM -${100 * PRICE_VOLATILITY_PERCENTAGE}% below market`}</div>
+                  { volatilityText && <div className='sell'>{volatilityText}</div> }
 
                   { !selectedAccount && (
                     <div className='d-flex justify-content-center'>
