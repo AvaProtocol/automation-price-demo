@@ -126,9 +126,12 @@ function App() {
     currentPrice = convertToNumber(currentPriceValue);
   }
 
-  let volatilityText = null;
+  let volatilityElement = null;
   if (priceVolatility) {
-    volatilityText = `Sell KSM ${Math.abs((100 * priceVolatility).toFixed(2))}% ${ priceVolatility > 0 ? 'above' : 'below' } market`;
+    const volatilityText = `Sell KSM ${Math.abs((100 * priceVolatility).toFixed(2))}% ${ priceVolatility > 0 ? 'above' : 'below' } market`;
+    const color = priceVolatility > 0 ? 'green' : 'red';
+    volatilityElement  = (<div className='sell' style={{ color }}>{volatilityText}</div>);
+    
   }
 
   return (
@@ -190,7 +193,7 @@ function App() {
                     </Col>
                   </Row>
 
-                  { volatilityText && <div className='sell'>{volatilityText}</div> }
+                  { volatilityElement }
 
                   { !selectedAccount && (
                     <div className='d-flex justify-content-center'>
