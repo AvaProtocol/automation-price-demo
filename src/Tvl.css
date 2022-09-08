@@ -1,0 +1,198 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.main-container {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.page-container {
+  padding-top: 50px;
+}
+
+.price-feed-container {
+  /* background-color: red; */
+  border: 1px solid #282c34;
+  width: 90%;
+  padding: 25px;
+  border-radius: 10px;
+}
+
+.swap-container {
+  border: 1px solid #282c34;
+  width: 90%;
+  padding: 25px;
+  border-radius: 10px;
+}
+
+.price-row {
+  height: 50px;
+}
+
+.price-col {
+  padding: 5px 15px;
+}
+
+.price-first-col {
+  padding-left: 0px;
+}
+
+button.ant-btn.connect-wallet-button {
+  background-color: #95098B;
+  color: #FFF;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+  font-size: 16px;
+  font-weight: 500;
+  height: auto;
+
+  padding: 12px 40px;
+  margin-top: 40px;
+}
+
+button.ant-btn.connect-wallet-button:hover {
+  opacity: 0.9;
+}
+
+.token-select {
+  width: 100px;
+}
+
+.page-wrapper {
+  width: 100vw;
+  height: 100vh;
+}
+
+.modal-background {
+  background-color: rgba(0, 0, 0, 0.9);
+  /* opacity: 0.5; */
+  width: 100%;
+  height: 100%;
+  position: absolute;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-window {
+  width: 50%;
+  height: 70%;
+  background-color: #FFF;
+  overflow-y: auto;
+
+  padding: 45px 20px;
+  border-radius: 5px;
+}
+
+.account-title {
+  text-align: center;
+  padding-bottom: 20px;
+}
+
+.account-row {
+  height: 40px;
+  font-size: 16px;
+  font-weight: 500;
+  border: 1px solid #95098B;
+  border-radius: 5px;
+  
+  display: flex;
+  align-items: center;
+  padding: 25px 10px;
+  margin: 15px 10px;
+  cursor: pointer;
+}
+
+.selected-account {
+  font-weight: 500;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 40px;
+}
+
+.extrinsic-status {
+  font-weight: 700;
+  word-wrap: break-word;
+  padding: 20px 40px;
+  text-align: center;
+}
+
+.sell {
+  font-weight: 800;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 40px;
+}
+
+.current-price {
+  font-weight: 800;
+  padding-top: 15px;
+  padding-bottom: 35px;
+}
+
+.current-price-text {
+  color: red;
+}
+
+.split-line {
+  padding-top: 10px;
+  margin-bottom: 34px;
+  border-bottom: 1px solid #666;
+  margin-right: 88px;
+}
+
+.direction-select {
+  color: red;
+}
+
+
+.price-text {
+  flex-grow: 2;
+  margin-left: -40px;
+  margin-top: 5px;
+}
+
+.price-wrapper {
+  display: flex;
+}
