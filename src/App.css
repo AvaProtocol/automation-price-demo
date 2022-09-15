@@ -164,6 +164,21 @@ button.ant-btn.connect-wallet-button:hover {
   margin-top: 40px;
 }
 
+.important {
+  font-weight: 500;
+  background-color: #f0f6fd;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.important p {
+  margin-bottom: 3px;
+}
+
+.important .title {
+  font-weight: 700;
+}
+
 .current-price {
   font-weight: 800;
   padding-top: 15px;
@@ -174,9 +189,8 @@ button.ant-btn.connect-wallet-button:hover {
   color: red;
 }
 
-.split-line {
+.swap-split-line {
   padding-top: 10px;
   margin-bottom: 34px;
   border-bottom: 1px solid #666;
-  margin-right: 88px;
 }
