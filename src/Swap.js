@@ -141,9 +141,16 @@ function Swap() {
           <Row>
             <Col span={12} className='d-flex justify-content-center'>
               <div className='price-feed-container'>
-                <h1>Price Feed</h1>
+                <h1>Price Feed: MGX / KSM</h1>
                 <div>
                   <table>
+                    <thead>
+                    <tr className="price-row" style={{ color: '#95098B'}}>
+                      <th className="price-col price-first-col">timestamp</th>
+                      <th className="price-col">asset</th>
+                      <th className="price-col">value</th>
+                    </tr>
+                    </thead>
                     <tbody>
                     {priceRows}
                     </tbody>
@@ -153,13 +160,13 @@ function Swap() {
             </Col>
             <Col span={12} className='d-flex justify-content-center'>
               <div className='swap-container'>
-                <h1>Swap</h1>
+                <h1>Swap Options</h1>
                 <div className="current-price">Current price: <span className="current-price-text">1 KSM = {currentPrice || '-'} MGX</span></div>
                 <Form
                   form={swapForm}
                   name="basic"
-                  labelCol={{ span: 8 }}
-                  wrapperCol={{ span: 16 }}
+                  labelCol={{ span: 14 }}
+                  wrapperCol={{ span: 10 }}
                   initialValues={{ remember: true }}
                   onFinish={onFinish}
                   autoComplete="off"
@@ -167,15 +174,15 @@ function Swap() {
                 >
                   <Row gutter={12}>
                     <Col span={12}>
-                      <Form.Item name="ksmAmount" rules={[{ required: true, message: 'Please input your ksm amount!' }]}>
+                      <Form.Item label="Sell quantity" name="ksmAmount" rules={[{ required: true, message: 'Please input your ksm amount!' }]}>
                         <Input />
                       </Form.Item>
-                      <div style={{ marginBottom: 20, fontWeight: 800, fontSize: 14 }}>X</div>
-                      <Form.Item name="price">
+                      <div style={{ marginBottom: 20, fontWeight: 800, fontSize: 14, textAlign: 'right' }}>X</div>
+                      <Form.Item label="Sell price" name="price" rules={[{ required: true, message: 'Please input price!' }]}>
                         <Input />
                       </Form.Item>
-                      <div className="split-line"></div>
-                      <Form.Item name="mgxAmount">
+                      <div className="swap-split-line"></div>
+                      <Form.Item label="Swap in the Future" name="mgxAmount">
                         <Input />
                       </Form.Item>
                     </Col>
@@ -192,6 +199,12 @@ function Swap() {
                       </div>
                     </Col>
                   </Row>
+                  
+                  <div className='important'>
+                    <p className="title">Important:</p>
+                    <p>Turing will trigger the transaction for inclusion after the price threshold has been met;</p>
+                    we cannot guarantee the price received.
+                  </div>
 
                   { volatilityElement }
 
