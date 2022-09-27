@@ -5,7 +5,6 @@ import { v4 } from 'uuid';
 import moment from 'moment-timezone';
 import { web3Accounts, web3Enable, web3FromAddress } from '@polkadot/extension-dapp';
 
-
 import subqueryHelper from './common/subqueryHelper';
 import polkadotHelper from './common/polkadotHelper';
 
@@ -22,6 +21,7 @@ function Swap() {
   const [sending, setSending] = useState(false);
   const [priceVolatility, setPriceVolatility] = useState(null);
   const [swapForm] = Form.useForm();
+  const [basePrice, setBasePrice] = useState(null);
 
   const convertToNumber = (value) => _.toNumber(_.replace(value, ',', ''));
 
@@ -44,6 +44,15 @@ function Swap() {
       setPrices(prices);
     }, 10000);
   }, [swapForm]);
+
+  useEffect(() => {
+    const getBasePrice = async () => {
+      const api = await polkadotHelper.getPolkadotApi();
+      const price = await api.query.automationPrice.assetBaselinePrices('mgx:ksm');
+      setBasePrice(price.unwrap().toNumber());
+    }
+    getBasePrice();
+  }, []);
 
   const priceRows = _.map(prices, (priceItem) => {
     const { timestamp, args: { asset, value } } = priceItem;
@@ -74,15 +83,16 @@ function Swap() {
     setAccounts(allAccounts);
   }
 
+  const getTriggerPercentage = () => {
+    const direction = priceVolatility > 0 ? 0 : 1;
+    let triggerPercentage = Math.ceil(Math.abs(priceVolatility * 100));
+    return { direction, triggerPercentage };
+  }
+
   const onSubmitClicked = async (ksmAmount) => {
     setSending(true);
     const api = await polkadotHelper.getPolkadotApi();
-
-    const direction = priceVolatility > 0 ? 0 : 1;
-    console.log('priceVolatility: ', priceVolatility);
-    let triggerPercentage = Math.abs(Math.floor(priceVolatility * 100));
-    triggerPercentage = triggerPercentage < 1 ? 1 : triggerPercentage;
-    console.log('triggerPercentage: ', triggerPercentage);
+    const { direction, triggerPercentage }  = getTriggerPercentage();
 
     const extrinsic = api.tx.automationPrice.scheduleTransferTask(v4(), 'mgx:ksm', direction, triggerPercentage, '68HXCiRMPD19obaN1Cnr93pHKRvdnfEHxJHYjV6enJNkdQTk', ksmAmount * 10000000000);
     console.log('selectedAccount.address: ', selectedAccount.address);
@@ -110,28 +120,21 @@ function Swap() {
   const onValuesChange = (values) => {
     const ksmAmount = _.toNumber(swapForm.getFieldValue('ksmAmount'));
     const price = _.toNumber(swapForm.getFieldValue('price'));
-    if (_.isNumber(price) && price > 0 && currentPrice > 0) {
+    if (_.isNumber(price) && price > 0 && basePrice > 0) {
       swapForm.setFieldsValue({ mgxAmount: ksmAmount * price });
-      setPriceVolatility(price / currentPrice - 1);
+      setPriceVolatility(price / basePrice - 1);
     } else {
       swapForm.setFieldsValue({ mgxAmount: undefined});
       setPriceVolatility(null);
     }
   }
-  
-
-  let currentPrice = null;
-  if (!_.isEmpty(prices)) {
-    const { args: { value: currentPriceValue } } = prices[0];
-    currentPrice = convertToNumber(currentPriceValue);
-  }
 
   let volatilityElement = null;
   if (priceVolatility) {
-    const volatilityText = `Sell KSM ${Math.abs((100 * priceVolatility).toFixed(2))}% ${ priceVolatility > 0 ? 'above' : 'below' } market`;
+    const { direction, triggerPercentage }  = getTriggerPercentage();
+    const volatilityText = `Sell KSM ${triggerPercentage}% ${ direction === 0 ? 'above' : 'below' } market`;
     const color = priceVolatility > 0 ? 'green' : 'red';
     volatilityElement  = (<div className='sell' style={{ color }}>{volatilityText}</div>);
-    
   }
 
   return (
@@ -161,7 +164,7 @@ function Swap() {
             <Col span={12} className='d-flex justify-content-center'>
               <div className='swap-container'>
                 <h1>Swap Options</h1>
-                <div className="current-price">Current price: <span className="current-price-text">1 KSM = {currentPrice || '-'} MGX</span></div>
+                <div className="current-price">Base price: <span className="current-price-text">1 KSM = {basePrice || '-'} MGX</span></div>
                 <Form
                   form={swapForm}
                   name="basic"
