@@ -1,5 +1,5 @@
-import { Row, Col, Input, Select, Button, Form } from 'antd';
-import { useEffect, useState } from 'react';
+import { Row, Col, Input, Button, Form } from 'antd';
+import React, { useEffect, useState } from 'react';
 import _ from 'lodash';
 import { v4 } from 'uuid';
 import moment from 'moment-timezone';
@@ -10,7 +10,7 @@ import polkadotHelper from './common/polkadotHelper';
 
 import './App.css';
 
-const { Option } = Select;
+// const { Option } = Select;
 
 function Swap() {
   const [prices, setPrices] = useState([]);
@@ -21,48 +21,55 @@ function Swap() {
   const [sending, setSending] = useState(false);
   const [priceVolatility, setPriceVolatility] = useState(null);
   const [swapForm] = Form.useForm();
-  const [basePrice, setBasePrice] = useState(null);
+  const [basePrice, setBasePrice] = useState(undefined);
+  const [currentPrice, setCurrentPrice] = useState(undefined);
+  const [expectedOutput, setExpectedOutput] = useState(undefined);
 
   const convertToNumber = (value) => _.toNumber(_.replace(value, ',', ''));
 
-  useEffect( () => {
-    setInterval(async () => {
-      let prices = await subqueryHelper.getPrices();
-      prices = _.filter(prices, ({ args: { asset }}) => asset === 'mgx:ksm');
-      prices = _.each(prices, (price) => price.timestamp = moment.utc(price.timestamp).format());
 
-      const { timestamp } = prices[0];
-      const api = await polkadotHelper.getPolkadotApi();
-      const price = await api.query.automationPrice.assetPrices('mgx:ksm');
-      if(moment(timestamp).minute() !== moment()) {
-        prices.unshift({ timestamp: moment().format(), args: { value: price.toString(), asset: 'mgx:ksm' } });
-      } else {
-        prices[0] = { timestamp: prices[0].timestamp, args: { value: price.toString(), asset: 'mgx:ksm' } };
-      }
-
-      prices = _.slice(prices, 0, 10);
-      setPrices(prices);
-    }, 10000);
-  }, [swapForm]);
+  // The retrieved mangata timestamps are UTC so we specify UTC here
+  const formatDatetime= (value) => moment.utc(value).format("MM-DD HH:mm:ss Z");
 
   useEffect(() => {
-    const getBasePrice = async () => {
-      const api = await polkadotHelper.getPolkadotApi();
-      const price = await api.query.automationPrice.assetBaselinePrices('mgx:ksm');
-      setBasePrice(price.unwrap().toNumber());
-    }
-    getBasePrice();
-  }, []);
 
-  const priceRows = _.map(prices, (priceItem) => {
-    const { timestamp, args: { asset, value } } = priceItem;
+    const fetchPrices = async () => {
+      console.log("fetchprices");
+      let prices = await subqueryHelper.getPrices();
+      prices = _.filter(prices, ({ args: { asset }}) => asset === 'mgx:ksm');
+
+      const formattedRows = _.map(prices, (price) => ({ asset: price.args.asset, value: price.args.value,timestamp :formatDatetime(price.timestamp)}));
+      setPrices(_.slice(formattedRows, 0, 10));
+
+      const api = await polkadotHelper.getPolkadotApi();
+      const respCurrentPrice = await api.query.automationPrice.assetPrices('mgx:ksm');
+      setCurrentPrice({ timestamp:  moment().format("MM-DD HH:mm:ss Z"), value: respCurrentPrice.toString(), asset: 'mgx:ksm' });
+
+      const respBasePrice = await api.query.automationPrice.assetBaselinePrices('mgx:ksm');
+      setBasePrice(respBasePrice.unwrap().toNumber());
+    };
+
+    fetchPrices();  // Run the function without waiting for setInterval
+    swapForm.setFieldsValue({mgxAmount: 10000});  // Auto-fill in mgxAmount for demo purpose
+
+    const interval = setInterval(fetchPrices, 8000);
+
+    // Clear the timer when the component unmounts to prevent it leaving errors and leaking memory:
+    return () => {
+      clearInterval(interval);
+    };
+
+  }, [swapForm]);
+
+  const priceRows = _.map(prices, (priceItem, index) => {
+    const { timestamp, asset, value } = priceItem;
     return (
-      <tr key={moment(timestamp).toString()} className="price-row">
-        <th className="price-col price-first-col">{moment(timestamp).format()}</th>
+      <tr key={index} className="price-row">
+        <th className="price-col price-first-col">{timestamp}</th>
         <th className="price-col">{asset}</th>
         <th className="price-col">{convertToNumber(value)}</th>
       </tr>
-    )
+    );
   });
 
   const onAccountSelected = (account) => {
@@ -117,24 +124,26 @@ function Swap() {
     onSubmitClicked(_.toNumber(values.ksmAmount));
   }
 
-  const onValuesChange = (values) => {
-    const ksmAmount = _.toNumber(swapForm.getFieldValue('ksmAmount'));
+  const onValuesChange = () => {
     const price = _.toNumber(swapForm.getFieldValue('price'));
+    const mgxAmount = _.toNumber(swapForm.getFieldValue('mgxAmount'));
+
     if (_.isNumber(price) && price > 0 && basePrice > 0) {
-      swapForm.setFieldsValue({ mgxAmount: ksmAmount * price });
+      setExpectedOutput(mgxAmount / price);
+      swapForm.setFieldsValue({ ksmAmount: mgxAmount / price });
       setPriceVolatility(price / basePrice - 1);
     } else {
-      swapForm.setFieldsValue({ mgxAmount: undefined});
       setPriceVolatility(null);
     }
   }
 
   let volatilityElement = null;
+
   if (priceVolatility) {
     const { direction, triggerPercentage }  = getTriggerPercentage();
-    const volatilityText = `Sell KSM ${triggerPercentage}% ${ direction === 0 ? 'above' : 'below' } market`;
+    const volatilityText = `${triggerPercentage}% ${ direction === 0 ? 'above' : 'below' } market price`;
     const color = priceVolatility > 0 ? 'green' : 'red';
-    volatilityElement  = (<div className='sell' style={{ color }}>{volatilityText}</div>);
+    volatilityElement  = (<span style={{ color, paddingLeft:12 }}>{volatilityText}</span>);
   }
 
   return (
@@ -142,7 +151,7 @@ function Swap() {
       <div className="main-container">
         <div className='container page-container'>
           <Row>
-            <Col span={12} className='d-flex justify-content-center'>
+            <Col span={12}>
               <div className='price-feed-container'>
                 <h1>Price Feed: MGX / KSM</h1>
                 <div>
@@ -161,35 +170,57 @@ function Swap() {
                 </div>
               </div>
             </Col>
-            <Col span={12} className='d-flex justify-content-center'>
+            <Col span={12}>
               <div className='swap-container'>
                 <h1>Swap Options</h1>
-                <div className="current-price">Base price: <span className="current-price-text">1 KSM = {basePrice || '-'} MGX</span></div>
+                <div style={{paddingTop:12, paddingBottom:24}}>
+                <div className="current-price">Base price: <span className="current-price-text">{basePrice || '-'} KSM:MGX</span></div>
+                <div className="current-price">Current price: <span className="current-price-text">{currentPrice && currentPrice.value || '-'} KSM:MGX</span></div>
+                </div>
                 <Form
                   form={swapForm}
                   name="basic"
-                  labelCol={{ span: 14 }}
-                  wrapperCol={{ span: 10 }}
+                  labelCol={{ span: 6 }}
+                  wrapperCol={{ span: 18 }}
                   initialValues={{ remember: true }}
                   onFinish={onFinish}
                   autoComplete="off"
                   onValuesChange={onValuesChange}
+                  labelAlign="left"
                 >
-                  <Row gutter={12}>
-                    <Col span={12}>
-                      <Form.Item label="Sell quantity" name="ksmAmount" rules={[{ required: true, message: 'Please input your ksm amount!' }]}>
-                        <Input />
+                  <Row>
+                    <Col span={24} >
+                      <Form.Item label="Stop" >
+                        <Row>
+                          <Col span={10}>
+                          <Form.Item name="price" rules={[{ required: true, message: 'Please input price!' }]} noStyle>
+                          <Input />
+                        </Form.Item>
+                          </Col>
+                          <Col span={14}><span style={{paddingLeft:12, lineHeight:'32px'}}> MGX</span>{ volatilityElement }</Col>
+                        </Row>
                       </Form.Item>
-                      <div style={{ marginBottom: 20, fontWeight: 800, fontSize: 14, textAlign: 'right' }}>X</div>
-                      <Form.Item label="Sell price" name="price" rules={[{ required: true, message: 'Please input price!' }]}>
-                        <Input />
+                      <Form.Item label="Amount" >
+                        <Row>
+                          <Col span={10}>
+                          <Form.Item name="mgxAmount" rules={[{ required: true, message: 'Please enter a MGX amount' }]}>
+                          <Input />
+                          </Form.Item>
+                          </Col>
+                          <Col span={14}><span style={{paddingLeft:12, lineHeight:'32px'}}> MGX</span></Col>
+                        </Row>
                       </Form.Item>
-                      <div className="swap-split-line"></div>
-                      <Form.Item label="Swap in the Future" name="mgxAmount">
-                        <Input />
+                      {/* <div style={{ marginBottom: 20, fontWeight: 800, fontSize: 14, textAlign: 'right' }}>X</div> */}
+                      <Form.Item label="Expected Output:" >
+                        <Row>
+                          <Col span={16}>
+                          <span style={{paddingLeft:12}}>{_.isNaN(expectedOutput)? "-" : expectedOutput} KSM</span>
+                          </Col>
+                        </Row>
                       </Form.Item>
+                      
                     </Col>
-                    <Col span={12}>
+                    {/* <Col span={24}>
                       <div style={{ marginBottom: 169 }}>
                         <Select className="token-select" defaultValue="ksm">
                           <Option value="ksm">KSM</Option>
@@ -200,7 +231,7 @@ function Swap() {
                           <Option value="mgx">MGX</Option>
                         </Select>
                       </div>
-                    </Col>
+                    </Col> */}
                   </Row>
                   
                   <div className='important'>
@@ -209,7 +240,6 @@ function Swap() {
                     we cannot guarantee the price received.
                   </div>
 
-                  { volatilityElement }
 
                   { !selectedAccount && (
                     <div className='d-flex justify-content-center'>
@@ -224,7 +254,7 @@ function Swap() {
                   
                   { selectedAccount && (
                     <div className='d-flex justify-content-center'>
-                      <Button htmlType="submit" className="connect-wallet-button" loading={sending}>Submit</Button>
+                      <Button htmlType="submit" className="connect-wallet-button" loading={sending}>Buy KSM</Button>
                     </div>
                   )}
                 </Form>
