@@ -1,14 +1,14 @@
 import { Routes, Route } from 'react-router-dom';
 import Swap from './Swap';
 import Tvl from './Tvl';
-import ArthSwap from './ArthSwap';
+import ArthSwapApp from './ArthSwap';
 
 function App() {
   return (
     <Routes>
       <Route path="/swap" element={<Swap />} />
       <Route path="/tvl" element={<Tvl />} />
-      <Route path="/arthswap" element={<ArthSwap />} />
+      <Route path="/arthswap" element={<ArthSwapApp />} />
     </Routes>
   );
 }
