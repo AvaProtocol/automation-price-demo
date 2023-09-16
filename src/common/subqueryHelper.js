@@ -1,8 +1,7 @@
 const SUBQUERY_URL = 'https://api.subquery.network/sq/OAK-Foundation/turing-staging-subql';
 
 class SubqueryHelper {
-
-	query = async (data) => {
+  static query = async (data) => {
     const response = await fetch(
       SUBQUERY_URL,
       {
@@ -16,14 +15,14 @@ class SubqueryHelper {
     return result;
   };
 
-	getPrices = async () => {
-		const queryObj = {
+  static getPrices = async () => {
+    const queryObj = {
       query: 'query { extrinsics( orderBy:TIMESTAMP_DESC filter:{ method: { in: ["assetPriceUpdate" ]} }) { nodes { timestamp args } } }',
       variables: null,
     };
     const { data: { extrinsics: { nodes } } } = await this.query(queryObj);
     return nodes;
-	}
+  };
 }
 
-export default new SubqueryHelper();
+export default SubqueryHelper;
