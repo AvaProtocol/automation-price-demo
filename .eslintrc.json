@@ -3,16 +3,12 @@
         "browser": true,
         "es2021": true
     },
-    "extends": [
-        "eslint:recommended"
-    ],
+    "extends": "airbnb",
     "parserOptions": {
-        "ecmaFeatures": {
-            "jsx": true
-        },
         "ecmaVersion": "latest",
         "sourceType": "module"
     },
     "rules": {
+        "no-unused-vars": "warn"
     }
 }
