@@ -236,6 +236,10 @@ function ArthSwapApp() {
       }), (item) => !_.isUndefined(item));
 
       console.log('parsedLogs', parsedLogs);
+
+      // Print out the ETH balance after the transaction
+      const balanceAfterSwap = ethers.formatEther(await provider.getBalance(wallet.address));
+      console.log('Balance after swap: ', balanceAfterSwap);
     } catch (ex) {
       console.log(ex);
 
@@ -248,9 +252,6 @@ function ArthSwapApp() {
     }
 
     setModalLoadingSwap(false);
-
-    const balanceAfterSwap = ethers.formatEther(await provider.getBalance(wallet.address));
-    console.log('Balance after swap: ', balanceAfterSwap);
   }, [wallet, provider]);
 
   const closeModalSwap = () => {
