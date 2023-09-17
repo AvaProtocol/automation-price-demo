@@ -25,4 +25,4 @@ class SubqueryHelper {
   };
 }
 
-export default SubqueryHelper;
+export default new SubqueryHelper();
