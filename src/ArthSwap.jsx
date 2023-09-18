@@ -267,6 +267,24 @@ function ArthSwapApp() {
   }, []);
 
   /**
+   * Use MetaMask to schedule a Swap transaction via XCM
+   */
+  const onClickScheduleByTime = useCallback(async () => {
+    if (_.isNull(wallet)) {
+      message.error('Wallet needs to be connected first.');
+    }
+  }, [wallet, provider]);
+
+  /**
+   * Use MetaMask to schedule a Swap transaction via XCM
+   */
+  const onClickScheduleByPrice = useCallback(async () => {
+    if (_.isNull(wallet)) {
+      message.error('Wallet needs to be connected first.');
+    }
+  }, [wallet, provider]);
+
+  /**
    * Main functions
    */
   return (
@@ -448,6 +466,8 @@ function ArthSwapApp() {
                           )}
                         </dl>
                       </Modal>
+                      <Button onClick={onClickScheduleByTime}>Schedule by Time</Button>
+                      <Button onClick={onClickScheduleByPrice}>Schedule by Price</Button>
                     </div>
                   </Form>
                 </div>
