@@ -3,16 +3,16 @@
         "browser": true,
         "es2021": true
     },
-    "extends": [
-        "eslint:recommended"
-    ],
+    "extends": "airbnb",
     "parserOptions": {
-        "ecmaFeatures": {
-            "jsx": true
-        },
         "ecmaVersion": "latest",
         "sourceType": "module"
     },
     "rules": {
+        "no-unused-vars": "warn",
+        "max-len": ["warn", { "code": 256 }],
+        "jsx-a11y/click-events-have-key-events": "warn",
+        "import/no-named-as-default": "warn",
+        "react/jsx-one-expression-per-line": "off"
     }
 }

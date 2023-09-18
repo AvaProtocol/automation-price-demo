@@ -7,11 +7,11 @@ import App from './App';
 import reportWebVitals from './reportWebVitals';
 
 // Bootstrap CSS
-import "bootstrap/dist/css/bootstrap.min.css";
+import 'bootstrap/dist/css/bootstrap.min.css';
 import 'antd/dist/antd.min.css';
 
 // Bootstrap Bundle JS
-import "bootstrap/dist/js/bootstrap.bundle.min";
+import 'bootstrap/dist/js/bootstrap.bundle.min';
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
@@ -19,7 +19,7 @@ root.render(
     <HashRouter>
       <App />
     </HashRouter>
-  </React.StrictMode>
+  </React.StrictMode>,
 );
 
 // If you want to start measuring performance in your app, pass a function
