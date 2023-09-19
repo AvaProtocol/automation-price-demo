@@ -1,6 +1,7 @@
 import { ApiPromise, WsProvider } from '@polkadot/api';
 
-const OAK_WS_ENDPOINT = 'wss://rpc.turing-staging.oak.tech';
+// const OAK_WS_ENDPOINT = 'wss://rpc.turing-staging.oak.tech';
+const OAK_WS_ENDPOINT = 'ws://127.0.0.1:9946';
 
 class PolkadotHelper {
   constructor() {

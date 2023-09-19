@@ -55,6 +55,11 @@
   border-radius: 10px;
 }
 
+.modal-wrapper {
+  height: 200px;
+  overflow-y: scroll;
+}
+
 .swap-container {
   border: 1px solid #282c34;
   width: 90%;

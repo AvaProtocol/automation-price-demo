@@ -1,11 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import _ from 'lodash';
+import BN from 'bn.js';
 import {
   Row, Col, Input, Button, Form, Modal, Radio, Space, message,
 } from 'antd';
 import './App.css';
+import { web3Accounts, web3Enable, web3FromAddress } from '@polkadot/extension-dapp';
+import { ApiPromise, WsProvider } from '@polkadot/api';
+import { u8aToHex, hexToU8a } from '@polkadot/util';
+import Keyring from '@polkadot/keyring';
+import { TypeRegistry } from '@polkadot/types';
+import { blake2AsU8a } from '@polkadot/util-crypto';
+// import { chains } from '@oak-network/config';
+// import { AstarAdapter } from '@oak-network/adapter';
+import moment from 'moment';
 import abi from './common/arthswap/abi';
 import erc20ABI from './common/arthswap/erc20ABI';
+import polkadotHelper from './common/polkadotHelper';
+// import polkadotHelper from './common/polkadotHelper';
 
 const ethers = require('ethers'); // eslint-disable-line import/no-extraneous-dependencies
 
@@ -13,12 +25,55 @@ const ROUTER_ADDRESS = '0xA17E7Ba271dC2CC12BA5ECf6D178bF818A6D76EB';
 const ARSW_ADDRESS = '0xE17D2c5c7761092f31c9Eca49db426D5f2699BF0';
 const WRSTR_ADDRESS = '0x7d5d845Fd0f763cefC24A1cb1675669C3Da62615';
 const DEADLINE = '111111111111111111';
+const WEIGHT_REF_TIME_PER_SECOND = new BN('1000000000000');
 
 const network = {
   name: 'Rocstar',
-  endpoint: 'https://rocstar.astar.network',
+  // endpoint: 'wss://rocstar.astar.network',
+  endpoint: 'ws://127.0.0.1:9948',
   chainId: 692,
   symbol: 'RSTR',
+  decimals: 18,
+};
+
+const sendExtrinsic = async (api, extrinsic, address, signer, { isSudo = false } = {}) => new Promise((resolve) => {
+  const newExtrinsic = isSudo ? api.tx.sudo.sudo(extrinsic) : extrinsic;
+  newExtrinsic.signAndSend(address, { nonce: -1, signer }, ({ status, events }) => {
+    console.log('status.type', status.type);
+
+    if (status.isInBlock || status.isFinalized) {
+      events
+      // find/filter for failed events
+        .filter(({ event }) => api.events.system.ExtrinsicFailed.is(event))
+      // we know that data for system.ExtrinsicFailed is
+      // (DispatchError, DispatchInfo)
+        .forEach(({ event: { data: [error] } }) => {
+          if (error.isModule) {
+            // for module errors, we have the section indexed, lookup
+            const decoded = api.registry.findMetaError(error.asModule);
+            const { docs, method, section } = decoded;
+            console.log(`${section}.${method}: ${docs.join(' ')}`);
+          } else {
+            // Other, CannotLookup, BadOrigin, no extra info
+            console.log(error.toString());
+          }
+        });
+
+      if (status.isFinalized) {
+        resolve({ events, blockHash: status.asFinalized.toString() });
+      }
+    }
+  });
+});
+
+const formatToken = (amount, decimals) => {
+  const decimalBN = new BN(10).pow(new BN(decimals));
+  return { a: amount.div(decimalBN), b: amount.mod(decimalBN) };
+};
+
+const formatTokenBalanceString = (amount, decimals) => {
+  const { a, b } = formatToken(amount, decimals);
+  return `${a.toString()}.${b.toString()}`;
 };
 
 function handleChainChanged(newChainId) {
@@ -29,6 +84,54 @@ function handleChainChanged(newChainId) {
 
 window.ethereum.on('chainChanged', handleChainChanged);
 
+let rocstarApiInstance;
+
+const getRocstarApi = async () => {
+  if (!rocstarApiInstance) {
+    const wsProvider = new WsProvider(network.endpoint);
+    rocstarApiInstance = await ApiPromise.create({ provider: wsProvider });
+  }
+  return rocstarApiInstance;
+};
+
+const getHourlyTimestamp = (hour) => (moment().add(hour, 'hour').startOf('hour')).valueOf();
+
+const getDerivativeAccountV2 = (api, accountId, paraId, { locationType = 'XcmV2MultiLocation', networkType = 'Any' } = {}) => {
+  const account = hexToU8a(accountId).length === 20
+    ? { AccountKey20: { network: networkType, key: accountId } }
+    : { AccountId32: { network: networkType, id: accountId } };
+
+  const location = {
+    parents: 1,
+    interior: { X2: [{ Parachain: paraId }, account] },
+  };
+  const multilocation = api.createType(locationType, location);
+  const toHash = new Uint8Array([
+    ...new Uint8Array([32]),
+    ...new TextEncoder().encode('multiloc'),
+    ...multilocation.toU8a(),
+  ]);
+
+  return u8aToHex(api.registry.hash(toHash).slice(0, 32));
+};
+
+export const getDerivativeAccountV3 = (accountId, paraId, deriveAccountType = 'AccountId32') => {
+  const accountType = hexToU8a(accountId).length === 20 ? 'AccountKey20' : 'AccountId32';
+  const decodedAddress = hexToU8a(accountId);
+
+  // Calculate Hash Component
+  const registry = new TypeRegistry();
+  const toHash = new Uint8Array([
+    ...new TextEncoder().encode('SiblingChain'),
+    ...registry.createType('Compact<u32>', paraId).toU8a(),
+    ...registry.createType('Compact<u32>', accountType.length + hexToU8a(accountId).length).toU8a(),
+    ...new TextEncoder().encode(accountType),
+    ...decodedAddress,
+  ]);
+
+  return u8aToHex(blake2AsU8a(toHash).slice(0, deriveAccountType === 'AccountKey20' ? 20 : 32));
+};
+
 function ArthSwapApp() {
   const [swapForm] = Form.useForm();
 
@@ -37,21 +140,22 @@ function ArthSwapApp() {
   const [isModalOpenWalletConnect, setModalOpenWalletConnect] = useState(false);
   const [radioValue, setRadioValue] = useState(1);
 
+  // Polkadot Modal Wallet Connect states
+  const [isPolkadotModalOpenWalletConnect, setPolkadotModalOpenWalletConnect] = useState(false);
+  const [polkadotAccounts, setPolkadotAccounts] = useState([]);
+
   // Modal Swap states
   const [isModalLoadingSwap, setModalLoadingSwap] = useState(false);
   const [isModalOpenSwap, setModalOpenSwap] = useState(false);
   const [swapStatus, setSwapStatus] = useState('Waiting for Signature');
   const [receiptSwap, setReceiptSwap] = useState(null);
 
-  // Modal Schedule states
-  const [isModalLoadingSchedule, setModalLoadingSchedule] = useState(false);
-  const [isModalOpenSchedule, setModalOpenSchedule] = useState(false);
-  const [sendingSchedule, setSendingSchedule] = useState(false);
-
   // App states
   const [provider, setProvider] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [wallet, setWallet] = useState(null); /* New */
+
+  // const [polkadotWallet, setPolkadotWallet] = useState(null);
 
   useEffect(() => {
     // This code will run after the component has rendered
@@ -116,6 +220,18 @@ function ArthSwapApp() {
     setModalOpenWalletConnect(true);
   }, [provider]);
 
+  const onClickConnectPolkadotWallet = async () => {
+    await web3Enable('Automation price demo');
+    const allAccounts = await web3Accounts({ accountType: 'sr25519', ss58Format: 51 });
+    console.log('allAccounts', allAccounts);
+    setPolkadotModalOpenWalletConnect(true);
+    setPolkadotAccounts(allAccounts);
+  };
+
+  const closePolkadotModalWalletConnect = () => {
+    setPolkadotModalOpenWalletConnect(false);
+  };
+
   const onClickWalletSelectSubmitted = useCallback(async () => {
     console.log('Setting radioValue as selected account', radioValue);
 
@@ -142,6 +258,27 @@ function ArthSwapApp() {
       signer, address: signerAddress, balance: formattedBalance, nonce,
     });
   }, [radioValue, provider]);
+
+  const onClickPolkadotkWalletSelectSubmitted = async () => {
+    console.log('Setting radioValue as selected account', radioValue);
+    const address = radioValue;
+
+    setModalLoadingWalletConnect(true);
+
+    console.log('Found selected radio from provider', radioValue);
+
+    const { signer } = await web3FromAddress(radioValue);
+
+    const rocstarApi = await getRocstarApi();
+    const { nonce, data: { free: balance } } = await rocstarApi.query.system.account(address);
+
+    setModalLoadingWalletConnect(false);
+    setPolkadotModalOpenWalletConnect(false);
+
+    setWallet({
+      signer, address, balance, nonce,
+    });
+  };
 
   const closeModalWalletConnect = () => {
     setModalOpenWalletConnect(false);
@@ -266,12 +403,161 @@ function ArthSwapApp() {
     setWallet(null);
   }, []);
 
+  const onClickDisconnectPolkadotWallet = useCallback(async () => {
+    console.log('onClickDisconnectWallet call back is called.');
+
+    setPolkadotAccounts([]);
+    setWallet(null);
+  }, []);
+
   /**
    * Use MetaMask to schedule a Swap transaction via XCM
    */
   const onClickScheduleByTime = useCallback(async () => {
     if (_.isNull(wallet)) {
       message.error('Wallet needs to be connected first.');
+    }
+
+    try {
+      const rocstarApi = await getRocstarApi();
+      const rocstarParaId = (await rocstarApi.query.parachainInfo.parachainId()).toNumber();
+      console.log('rocstarParaId: ', rocstarParaId);
+      const rocStarSs58Prefix = rocstarApi.consts.system.ss58Prefix.toNumber();
+
+      const turingApi = await polkadotHelper.getPolkadotApi();
+      const turingParaId = (await turingApi.query.parachainInfo.parachainId()).toNumber();
+      console.log('turingParaId: ', turingParaId);
+      const turingSs58Prefix = turingApi.consts.system.ss58Prefix.toNumber();
+
+      const keyring = new Keyring({ type: 'sr25519' });
+      const aliceKeyringPair = keyring.addFromUri('//Alice', undefined, 'sr25519');
+      aliceKeyringPair.meta.name = 'Alice';
+
+      const transferToAccountOnTuring = turingApi.tx.balances.transfer(wallet.address, new BN('1000000000000'));
+      await sendExtrinsic(turingApi, transferToAccountOnTuring, aliceKeyringPair, undefined);
+
+      const transferToAccountOnRocstar = rocstarApi.tx.balances.transfer(wallet.address, new BN('100000000000000000000'));
+      await sendExtrinsic(rocstarApi, transferToAccountOnRocstar, aliceKeyringPair, undefined);
+
+      const derivativeAccountOnTuring = getDerivativeAccountV2(turingApi, u8aToHex(keyring.decodeAddress(wallet.address)), rocstarParaId, { locationType: 'XcmV3MultiLocation', networkType: 'rococo' });
+      const proxyExtrinsicOnTuring = turingApi.tx.proxy.addProxy(derivativeAccountOnTuring, 'Any', 0);
+      await sendExtrinsic(turingApi, proxyExtrinsicOnTuring, wallet.address, wallet.signer);
+
+      const derivativeAccountOnRocstar = getDerivativeAccountV3(u8aToHex(keyring.decodeAddress(wallet.address)), turingParaId);
+      const proxyExtrinsicOnRocstar = rocstarApi.tx.proxy.addProxy(derivativeAccountOnRocstar, 'Any', 0);
+      await sendExtrinsic(rocstarApi, proxyExtrinsicOnRocstar, wallet.address, wallet.signer);
+
+      const transferToProxyOnRocstar = rocstarApi.tx.balances.transfer(derivativeAccountOnRocstar, new BN('10000000000000000000'));
+      await sendExtrinsic(rocstarApi, transferToProxyOnRocstar, wallet.address, wallet.signer);
+
+      const transferToProxyOnTuring = rocstarApi.tx.xtokens.transferMultiasset(
+        {
+          V3: {
+            id: { Concrete: { parents: 0, interior: 'Here' } },
+            fun: { Fungible: new BN('10000000000000000000') },
+          },
+        },
+        {
+          V3: {
+            parents: 1,
+            interior: {
+              X2: [
+                { Parachain: turingParaId },
+                { AccountId32: { network: null, id: derivativeAccountOnTuring } },
+              ],
+            },
+          },
+        },
+        'Unlimited',
+      );
+      await sendExtrinsic(rocstarApi, transferToProxyOnTuring, wallet.address, wallet.signer);
+
+      const taskPayloadExtrinsic = rocstarApi.tx.proxy.proxy(wallet.address, 'Any', rocstarApi.tx.ethereumChecked.transact({
+        gasLimit: 201596,
+        target: '0xA17E7Ba271dC2CC12BA5ECf6D178bF818A6D76EB',
+        value: new BN('10000000000000000'),
+        // eslint-disable-next-line max-len
+        input: '0x7ff36ab5000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000005446cff2194e84f79513acf6c8980d6e60747253000000000000000000000000000000000000000000000000018abef7846071c700000000000000000000000000000000000000000000000000000000000000020000000000000000000000007d5d845fd0f763cefc24a1cb1675669c3da62615000000000000000000000000e17d2c5c7761092f31c9eca49db426d5f2699bf0',
+      }));
+
+      // const taskPayloadExtrinsic = rocstarApi.tx.proxy.proxy(wallet.address, 'any', rocstarApi.tx.system.remarkWithEvent('HELLO'));
+      const taskEncodedCallWeightRaw = (await taskPayloadExtrinsic.paymentInfo(wallet.address)).weight;
+      const taskEncodedCallWeight = { refTime: taskEncodedCallWeightRaw.refTime.unwrap(), proofSize: taskEncodedCallWeightRaw.proofSize.unwrap() };
+      const instructionCountOnTuring = 4;
+      const astarInstrcutionWeight = { refTime: new BN('1000000000'), proofSize: new BN(64 * 1024) };
+      const taskOverallWeight = {
+        refTime: taskEncodedCallWeight.refTime.add(astarInstrcutionWeight.refTime.muln(instructionCountOnTuring)),
+        proofSize: taskEncodedCallWeight.proofSize.add(astarInstrcutionWeight.proofSize.muln(instructionCountOnTuring)),
+      };
+      const fee = await rocstarApi.call.transactionPaymentApi.queryWeightToFee(taskOverallWeight);
+      const scheduleFeeLocation = { V3: { parents: 1, interior: { X1: { Parachain: rocstarParaId } } } };
+      const executionFee = { assetLocation: { V3: { parents: 1, interior: { X1: { Parachain: rocstarParaId } } } }, amount: fee };
+      // const nextExecutionTime = getHourlyTimestamp(1) / 1000;
+      // const timestampTwoHoursLater = getHourlyTimestamp(2) / 1000;
+      // const schedule = { Fixed: { executionTimes: [nextExecutionTime, timestampTwoHoursLater] } };
+      const schedule = { Fixed: { executionTimes: [0] } };
+      const taskExtrinsic = turingApi.tx.automationTime.scheduleXcmpTaskThroughProxy(
+        schedule,
+        { V3: { parents: 1, interior: { X1: { Parachain: rocstarParaId } } } },
+        scheduleFeeLocation,
+        executionFee,
+        taskPayloadExtrinsic.method.toHex(),
+        taskEncodedCallWeight,
+        taskOverallWeight,
+        wallet.address,
+      );
+
+      const encodedCallWeightRaw = (await taskExtrinsic.paymentInfo(wallet.address)).weight;
+      const encodedCallWeight = { refTime: encodedCallWeightRaw.refTime.unwrap(), proofSize: encodedCallWeightRaw.proofSize.unwrap() };
+      const instructionCount = 4;
+      const instructionWeight = { refTime: new BN('1000000000'), proofSize: new BN(0) };
+      const overallWeight = {
+        refTime: encodedCallWeight.refTime.add(instructionWeight.refTime.muln(instructionCount)),
+        proofSize: encodedCallWeight.proofSize.add(instructionWeight.proofSize.muln(instructionCount)),
+      };
+
+      const storageValue = await turingApi.query.assetRegistry.locationToAssetId({ parents: 1, interior: { X1: { Parachain: rocstarParaId } } });
+      const assetId = storageValue.unwrap();
+      const metadataStorageValue = await turingApi.query.assetRegistry.metadata(assetId);
+      const { additional } = metadataStorageValue.unwrap();
+      const feePerSecond = additional.feePerSecond.unwrap();
+      const feeAmount = overallWeight.refTime.mul(feePerSecond).div(WEIGHT_REF_TIME_PER_SECOND);
+
+      const xcmMessage = {
+        V3: [
+          {
+            WithdrawAsset: [
+              {
+                fun: { Fungible: feeAmount },
+                id: { Concrete: { parents: 1, interior: { X1: { Parachain: rocstarParaId } } } },
+              },
+            ],
+          },
+          {
+            BuyExecution: {
+              fees: {
+                fun: { Fungible: feeAmount },
+                id: { Concrete: { parents: 1, interior: { X1: { Parachain: rocstarParaId } } } },
+              },
+              weightLimit: { Limited: overallWeight },
+            },
+          },
+          {
+            Transact: {
+              originKind: 'SovereignAccount',
+              requireWeightAtMost: encodedCallWeight,
+              call: { encoded: taskExtrinsic.method.toHex() },
+            },
+          },
+        ],
+      };
+
+      const dest = { V3: { parents: 1, interior: { X1: { Parachain: turingParaId } } } };
+      const extrinsic = rocstarApi.tx.polkadotXcm.send(dest, xcmMessage);
+      console.log('extrinsic: ', extrinsic.method.toHex());
+      await sendExtrinsic(rocstarApi, extrinsic, wallet.address, wallet.signer);
+    } catch (error) {
+      console.log(error);
     }
   }, [wallet, provider]);
 
@@ -294,7 +580,7 @@ function ArthSwapApp() {
           <div className="container page-container">
             <Row>
               <Col span={24}>
-                { _.isNil(wallet)
+                {/* { _.isNil(wallet)
                   ? (<Button onClick={onClickConnectWallet}>Connect Metamask</Button>)
                   : (
                     <div><div>Wallet:</div><div>{wallet.address}</div>
@@ -302,6 +588,16 @@ function ArthSwapApp() {
                       <div>Nonce:</div><div>{wallet.nonce}</div>
                       <Button onClick={onClickConnectWallet}>Switch Wallet</Button>
                       <Button onClick={onClickDisconnectWallet}>Disconnect Metamask</Button>
+                    </div>
+                  )} */}
+                { _.isNil(wallet)
+                  ? (<Button onClick={onClickConnectPolkadotWallet}>Connect Polkadot.js</Button>)
+                  : (
+                    <div><div>Wallet:</div><div>{wallet.address}</div>
+                      <div>Balance:</div><div>{ formatTokenBalanceString(wallet.balance, network.decimals) } {network.symbol}</div>
+                      <div>Nonce:</div><div>{wallet.nonce.toString()}</div>
+                      <Button onClick={onClickConnectPolkadotWallet}>Switch Wallet</Button>
+                      <Button onClick={onClickDisconnectPolkadotWallet}>Disconnect</Button>
                     </div>
                   )}
                 <Modal
@@ -322,6 +618,26 @@ function ArthSwapApp() {
                   <Radio.Group onChange={onRadioChange} value={radioValue}>
                     <Space direction="vertical">
                       {_.map(accounts, (item) => (<Radio value={item} key={item}>{item}</Radio>))}
+                    </Space>
+                  </Radio.Group>
+                </Modal>
+                <Modal
+                  open={isPolkadotModalOpenWalletConnect}
+                  title="Connect Polkadot.js Wallet"
+                  onOk={onClickPolkadotkWalletSelectSubmitted}
+                  onCancel={closePolkadotModalWalletConnect}
+                  maskClosable={false}
+                  footer={[
+                    <Button key="back" onClick={closePolkadotModalWalletConnect}>Cancel</Button>,
+                    <Button key="submit" type="primary" loading={isModalLoadingWalletConnect} onClick={onClickPolkadotkWalletSelectSubmitted}>Confirm</Button>,
+                  ]}
+                >
+                  <Radio.Group onChange={onRadioChange} value={radioValue}>
+                    <Space className="modal-wrapper" direction="vertical">
+                      { _.map(polkadotAccounts, (item) => {
+                        const title = `${item.meta.name} ${item.address}`;
+                        return <Radio value={item.address} key={item.address}>{title}</Radio>;
+                      })}
                     </Space>
                   </Radio.Group>
                 </Modal>
