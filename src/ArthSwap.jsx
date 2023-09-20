@@ -135,12 +135,12 @@ export const listenEvents = async (api, section, method, conditions, timeout = u
 
 const formatToken = (amount, decimals) => {
   const decimalBN = new BN(10).pow(new BN(decimals));
-  return { a: amount.div(decimalBN), b: amount.mod(decimalBN) };
+  return { integer: amount.div(decimalBN), decimal: amount.mod(decimalBN) };
 };
 
 const formatTokenBalanceString = (amount, decimals) => {
-  const { a, b } = formatToken(amount, decimals);
-  return `${a.toString()}.${b.toString()}`;
+  const { integer, decimal } = formatToken(amount, decimals);
+  return `${integer.toString()}.${decimal.toString()}`;
 };
 
 function handleChainChanged(newChainId) {
@@ -498,59 +498,105 @@ function ArthSwapApp() {
       const rocstarApi = await getRocstarApi();
       const rocstarParaId = (await rocstarApi.query.parachainInfo.parachainId()).toNumber();
       console.log('rocstarParaId: ', rocstarParaId);
+      const rocstarSs58Prifx = rocstarApi.consts.system.ss58Prefix.toNumber();
 
       const turingApi = await polkadotHelper.getPolkadotApi();
       const turingParaId = (await turingApi.query.parachainInfo.parachainId()).toNumber();
       console.log('turingParaId: ', turingParaId);
+      const turingSs58Prifx = turingApi.consts.system.ss58Prefix.toNumber();
+
+      const storageValue = await turingApi.query.assetRegistry.locationToAssetId({ parents: 1, interior: { X1: { Parachain: rocstarParaId } } });
+      const assetId = storageValue.unwrap();
 
       const keyring = new Keyring({ type: 'sr25519' });
       const aliceKeyringPair = keyring.addFromUri('//Alice', undefined, 'sr25519');
       aliceKeyringPair.meta.name = 'Alice';
 
       console.log('Transfer TUR from Alice to user account on Turing...');
-      const transferToAccountOnTuring = turingApi.tx.balances.transfer(wallet.address, new BN('1000000000000'));
-      await sendExtrinsic(turingApi, transferToAccountOnTuring, aliceKeyringPair, undefined);
+      const minTuringBalance = new BN('1000000000000');
+      const { data: { free: turingBalance } } = await turingApi.query.system.account(wallet.address);
+      if (turingBalance.lt(minTuringBalance)) {
+        const transferToAccountOnTuring = turingApi.tx.balances.transfer(wallet.address, minTuringBalance);
+        await sendExtrinsic(turingApi, transferToAccountOnTuring, aliceKeyringPair, undefined);
+      } else {
+        console.log('Balance is enough. Skip transfer.');
+      }
 
       console.log('Transfer RSTR from Alice to user account on Rocstar...');
-      const transferToAccountOnRocstar = rocstarApi.tx.balances.transfer(wallet.address, new BN('100000000000000000000'));
-      await sendExtrinsic(rocstarApi, transferToAccountOnRocstar, aliceKeyringPair, undefined);
+      const minRocstarBalance = new BN('100000000000000000000');
+      const { data: { free: rocstarBalance } } = await rocstarApi.query.system.account(wallet.address);
+      if (rocstarBalance.lt(minTuringBalance)) {
+        const transferToAccountOnRocstar = rocstarApi.tx.balances.transfer(wallet.address, minRocstarBalance);
+        await sendExtrinsic(rocstarApi, transferToAccountOnRocstar, aliceKeyringPair, undefined);
+      } else {
+        console.log('Balance is enough. Skip transfer.');
+      }
 
       console.log('Add proxy on Turing...');
       const derivativeAccountOnTuring = getDerivativeAccountV2(turingApi, u8aToHex(keyring.decodeAddress(wallet.address)), rocstarParaId, { locationType: 'XcmV3MultiLocation', networkType: 'rococo' });
-      const proxyExtrinsicOnTuring = turingApi.tx.proxy.addProxy(derivativeAccountOnTuring, 'Any', 0);
-      await sendExtrinsic(turingApi, proxyExtrinsicOnTuring, wallet.address, wallet.signer);
+      const turingProxyType = 'Any';
+      const turingProxies = (await turingApi.query.proxy.proxies(wallet.address))[0];
+      const turingProxyAddress = keyring.encodeAddress(derivativeAccountOnTuring, turingSs58Prifx);
+      const matchedProxyOnTuring = _.find(turingProxies, ({ delegate, proxyType }) => delegate.toString() === turingProxyAddress && proxyType.toString() === turingProxyType);
+      if (!matchedProxyOnTuring) {
+        const proxyExtrinsicOnTuring = turingApi.tx.proxy.addProxy(derivativeAccountOnTuring, 'Any', 0);
+        await sendExtrinsic(turingApi, proxyExtrinsicOnTuring, wallet.address, wallet.signer);
+      } else {
+        console.log('Proxy is already added. Skip adding proxy.');
+      }
 
       console.log('Add proxy on Rocstar...');
       const derivativeAccountOnRocstar = getDerivativeAccountV3(u8aToHex(keyring.decodeAddress(wallet.address)), turingParaId);
-      const proxyExtrinsicOnRocstar = rocstarApi.tx.proxy.addProxy(derivativeAccountOnRocstar, 'Any', 0);
-      await sendExtrinsic(rocstarApi, proxyExtrinsicOnRocstar, wallet.address, wallet.signer);
+      const rocstarProxyType = 'Any';
+      const rocstarProxies = (await rocstarApi.query.proxy.proxies(wallet.address))[0];
+      const rocstarProxyAddress = keyring.encodeAddress(derivativeAccountOnRocstar, rocstarSs58Prifx);
+      const matchedProxyOnRocstar = _.find(rocstarProxies, ({ delegate, proxyType }) => delegate.toString() === rocstarProxyAddress && proxyType.toString() === rocstarProxyType);
+      if (!matchedProxyOnRocstar) {
+        const proxyExtrinsicOnRocstar = rocstarApi.tx.proxy.addProxy(derivativeAccountOnRocstar, 'Any', 0);
+        await sendExtrinsic(rocstarApi, proxyExtrinsicOnRocstar, wallet.address, wallet.signer);
+      } else {
+        console.log('Proxy is already added. Skip adding proxy.');
+      }
 
       console.log('Transfer RSTR to proxy account on Rocstar...');
-      const transferToProxyOnRocstar = rocstarApi.tx.balances.transfer(derivativeAccountOnRocstar, new BN('10000000000000000000'));
-      await sendExtrinsic(rocstarApi, transferToProxyOnRocstar, wallet.address, wallet.signer);
+      const minProxyBalanceOnRocstar = new BN('10000000000000000000');
+      const { data: { free: proxyBalanceOnRocstar } } = await rocstarApi.query.system.account(rocstarProxyAddress);
+      console.log('proxyBalanceOnRocstar: ', proxyBalanceOnRocstar.toString());
+      if (proxyBalanceOnRocstar.lt(minProxyBalanceOnRocstar)) {
+        const transferToProxyOnRocstar = rocstarApi.tx.balances.transfer(derivativeAccountOnRocstar, minProxyBalanceOnRocstar);
+        await sendExtrinsic(rocstarApi, transferToProxyOnRocstar, wallet.address, wallet.signer);
+      } else {
+        console.log('Balance is enough. Skip transfer.');
+      }
 
       console.log('Transfer RSTR to proxy account on Turing...');
-      const transferToProxyOnTuring = rocstarApi.tx.xtokens.transferMultiasset(
-        {
-          V3: {
-            id: { Concrete: { parents: 0, interior: 'Here' } },
-            fun: { Fungible: new BN('10000000000000000000') },
-          },
-        },
-        {
-          V3: {
-            parents: 1,
-            interior: {
-              X2: [
-                { Parachain: turingParaId },
-                { AccountId32: { network: null, id: derivativeAccountOnTuring } },
-              ],
+      const minProxyRstrBalanceOnTuring = new BN('10000000000000000000');
+      const { free: proxyRstrBalanceOnTuring } = await turingApi.query.tokens.accounts(derivativeAccountOnTuring, assetId);
+      if (proxyRstrBalanceOnTuring.lt(minProxyRstrBalanceOnTuring)) {
+        const transferToProxyOnTuring = rocstarApi.tx.xtokens.transferMultiasset(
+          {
+            V3: {
+              id: { Concrete: { parents: 0, interior: 'Here' } },
+              fun: { Fungible: minProxyRstrBalanceOnTuring },
             },
           },
-        },
-        'Unlimited',
-      );
-      await sendExtrinsic(rocstarApi, transferToProxyOnTuring, wallet.address, wallet.signer);
+          {
+            V3: {
+              parents: 1,
+              interior: {
+                X2: [
+                  { Parachain: turingParaId },
+                  { AccountId32: { network: null, id: derivativeAccountOnTuring } },
+                ],
+              },
+            },
+          },
+          'Unlimited',
+        );
+        await sendExtrinsic(rocstarApi, transferToProxyOnTuring, wallet.address, wallet.signer);
+      } else {
+        console.log('Balance is enough. Skip transfer.');
+      }
 
       console.log('Send Xcm message to Turing to schedule task...');
       const taskPayloadExtrinsic = rocstarApi.tx.proxy.proxy(wallet.address, 'Any', rocstarApi.tx.ethereumChecked.transact({
@@ -597,8 +643,6 @@ function ArthSwapApp() {
         proofSize: encodedCallWeight.proofSize.add(instructionWeight.proofSize.muln(instructionCount)),
       };
 
-      const storageValue = await turingApi.query.assetRegistry.locationToAssetId({ parents: 1, interior: { X1: { Parachain: rocstarParaId } } });
-      const assetId = storageValue.unwrap();
       const metadataStorageValue = await turingApi.query.assetRegistry.metadata(assetId);
       const { additional } = metadataStorageValue.unwrap();
       const feePerSecond = additional.feePerSecond.unwrap();
@@ -636,7 +680,7 @@ function ArthSwapApp() {
       const dest = { V3: { parents: 1, interior: { X1: { Parachain: turingParaId } } } };
       const extrinsic = rocstarApi.tx.polkadotXcm.send(dest, xcmMessage);
       console.log('extrinsic: ', extrinsic.method.toHex());
-      sendExtrinsic(rocstarApi, extrinsic, wallet.address, wallet.signer);
+      await extrinsic.signAndSend(wallet.address, { nonce: -1, signer: wallet.signer });
 
       console.log('Listen automationTime.TaskScheduled event on Turing...');
       const { foundEvent: taskScheduledEvent } = await listenEvents(turingApi, 'automationTime', 'TaskScheduled', undefined, 60000);
