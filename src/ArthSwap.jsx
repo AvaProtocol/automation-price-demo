@@ -11,6 +11,7 @@ import { u8aToHex, hexToU8a } from '@polkadot/util';
 import Keyring from '@polkadot/keyring';
 import { TypeRegistry } from '@polkadot/types';
 import { blake2AsU8a } from '@polkadot/util-crypto';
+import { Buffer } from 'buffer';
 // import { chains } from '@oak-network/config';
 // import { AstarAdapter } from '@oak-network/adapter';
 import moment from 'moment';
@@ -64,6 +65,72 @@ const sendExtrinsic = async (api, extrinsic, address, signer, { isSudo = false }
       }
     }
   });
+});
+
+export const listenEvents = async (api, section, method, conditions, timeout = undefined) => new Promise((resolve) => {
+  let unsub = null;
+  let timeoutId = null;
+
+  if (timeout) {
+    timeoutId = setTimeout(() => {
+      unsub();
+      resolve(null);
+    }, timeout);
+  }
+
+  const listenSystemEvents = async () => {
+    unsub = await api.query.system.events((events) => {
+      const foundEventIndex = _.findIndex(events, ({ event }) => {
+        const { section: eventSection, method: eventMethod, data } = event;
+        if (eventSection !== section || eventMethod !== method) {
+          return false;
+        }
+
+        if (!_.isUndefined(conditions)) {
+          return true;
+        }
+
+        let conditionPassed = true;
+        _.each(_.keys(conditions), (key) => {
+          if (conditions[key] === data[key]) {
+            conditionPassed = false;
+          }
+        });
+
+        return conditionPassed;
+      });
+
+      if (foundEventIndex !== -1) {
+        const foundEvent = events[foundEventIndex];
+        const {
+          event: {
+            section: eventSection, method: eventMethod, typeDef: types, data: eventData,
+          }, phase,
+        } = foundEvent;
+
+        // Print out the name of the event found
+        console.log(`\t${eventSection}:${eventMethod}:: (phase=${phase.toString()})`);
+
+        // Loop through the conent of the event, displaying the type and data
+        eventData.forEach((data, index) => {
+          console.log(`\t\t\t${types[index].type}: ${data.toString()}`);
+        });
+
+        unsub();
+
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        resolve({
+          events,
+          foundEvent,
+          foundEventIndex,
+        });
+      }
+    });
+  };
+
+  listenSystemEvents().catch(console.log);
 });
 
 const formatToken = (amount, decimals) => {
@@ -131,6 +198,15 @@ export const getDerivativeAccountV3 = (accountId, paraId, deriveAccountType = 'A
 
   return u8aToHex(blake2AsU8a(toHash).slice(0, deriveAccountType === 'AccountKey20' ? 20 : 32));
 };
+
+/**
+ * Wait for all promises to succeed, otherwise throw an exception.
+ * @param {*} promises
+ * @returns promise
+ */
+export const waitPromises = (promises) => new Promise((resolve, reject) => {
+  Promise.all(promises).then(resolve).catch(reject);
+});
 
 function ArthSwapApp() {
   const [swapForm] = Form.useForm();
@@ -422,34 +498,38 @@ function ArthSwapApp() {
       const rocstarApi = await getRocstarApi();
       const rocstarParaId = (await rocstarApi.query.parachainInfo.parachainId()).toNumber();
       console.log('rocstarParaId: ', rocstarParaId);
-      const rocStarSs58Prefix = rocstarApi.consts.system.ss58Prefix.toNumber();
 
       const turingApi = await polkadotHelper.getPolkadotApi();
       const turingParaId = (await turingApi.query.parachainInfo.parachainId()).toNumber();
       console.log('turingParaId: ', turingParaId);
-      const turingSs58Prefix = turingApi.consts.system.ss58Prefix.toNumber();
 
       const keyring = new Keyring({ type: 'sr25519' });
       const aliceKeyringPair = keyring.addFromUri('//Alice', undefined, 'sr25519');
       aliceKeyringPair.meta.name = 'Alice';
 
+      console.log('Transfer TUR from Alice to user account on Turing...');
       const transferToAccountOnTuring = turingApi.tx.balances.transfer(wallet.address, new BN('1000000000000'));
       await sendExtrinsic(turingApi, transferToAccountOnTuring, aliceKeyringPair, undefined);
 
+      console.log('Transfer RSTR from Alice to user account on Rocstar...');
       const transferToAccountOnRocstar = rocstarApi.tx.balances.transfer(wallet.address, new BN('100000000000000000000'));
       await sendExtrinsic(rocstarApi, transferToAccountOnRocstar, aliceKeyringPair, undefined);
 
+      console.log('Add proxy on Turing...');
       const derivativeAccountOnTuring = getDerivativeAccountV2(turingApi, u8aToHex(keyring.decodeAddress(wallet.address)), rocstarParaId, { locationType: 'XcmV3MultiLocation', networkType: 'rococo' });
       const proxyExtrinsicOnTuring = turingApi.tx.proxy.addProxy(derivativeAccountOnTuring, 'Any', 0);
       await sendExtrinsic(turingApi, proxyExtrinsicOnTuring, wallet.address, wallet.signer);
 
+      console.log('Add proxy on Rocstar...');
       const derivativeAccountOnRocstar = getDerivativeAccountV3(u8aToHex(keyring.decodeAddress(wallet.address)), turingParaId);
       const proxyExtrinsicOnRocstar = rocstarApi.tx.proxy.addProxy(derivativeAccountOnRocstar, 'Any', 0);
       await sendExtrinsic(rocstarApi, proxyExtrinsicOnRocstar, wallet.address, wallet.signer);
 
+      console.log('Transfer RSTR to proxy account on Rocstar...');
       const transferToProxyOnRocstar = rocstarApi.tx.balances.transfer(derivativeAccountOnRocstar, new BN('10000000000000000000'));
       await sendExtrinsic(rocstarApi, transferToProxyOnRocstar, wallet.address, wallet.signer);
 
+      console.log('Transfer RSTR to proxy account on Turing...');
       const transferToProxyOnTuring = rocstarApi.tx.xtokens.transferMultiasset(
         {
           V3: {
@@ -472,6 +552,7 @@ function ArthSwapApp() {
       );
       await sendExtrinsic(rocstarApi, transferToProxyOnTuring, wallet.address, wallet.signer);
 
+      console.log('Send Xcm message to Turing to schedule task...');
       const taskPayloadExtrinsic = rocstarApi.tx.proxy.proxy(wallet.address, 'Any', rocstarApi.tx.ethereumChecked.transact({
         gasLimit: 201596,
         target: '0xA17E7Ba271dC2CC12BA5ECf6D178bF818A6D76EB',
@@ -492,7 +573,7 @@ function ArthSwapApp() {
       const fee = await rocstarApi.call.transactionPaymentApi.queryWeightToFee(taskOverallWeight);
       const scheduleFeeLocation = { V3: { parents: 1, interior: { X1: { Parachain: rocstarParaId } } } };
       const executionFee = { assetLocation: { V3: { parents: 1, interior: { X1: { Parachain: rocstarParaId } } } }, amount: fee };
-      // const nextExecutionTime = getHourlyTimestamp(1) / 1000;
+      const nextExecutionTime = getHourlyTimestamp(1) / 1000;
       // const timestampTwoHoursLater = getHourlyTimestamp(2) / 1000;
       // const schedule = { Fixed: { executionTimes: [nextExecutionTime, timestampTwoHoursLater] } };
       const schedule = { Fixed: { executionTimes: [0] } };
@@ -555,7 +636,31 @@ function ArthSwapApp() {
       const dest = { V3: { parents: 1, interior: { X1: { Parachain: turingParaId } } } };
       const extrinsic = rocstarApi.tx.polkadotXcm.send(dest, xcmMessage);
       console.log('extrinsic: ', extrinsic.method.toHex());
-      await sendExtrinsic(rocstarApi, extrinsic, wallet.address, wallet.signer);
+      sendExtrinsic(rocstarApi, extrinsic, wallet.address, wallet.signer);
+
+      console.log('Listen automationTime.TaskScheduled event on Turing...');
+      const { foundEvent: taskScheduledEvent } = await listenEvents(turingApi, 'automationTime', 'TaskScheduled', undefined, 60000);
+      const taskId = Buffer.from(taskScheduledEvent.event.data.taskId).toString();
+      console.log('taskId:', taskId);
+
+      console.log(`Listen automationTime.TaskTriggered event with taskId(${taskId}) and find xcmpQueue.XcmpMessageSent event on Turing...`);
+      const { events, foundEventIndex } = await listenEvents(turingApi, 'automationTime', 'TaskTriggered', { taskId }, 60000);
+      const xcmpMessageSentEvent = _.find(events, (event) => {
+        const { section, method } = event.event;
+        return section === 'xcmpQueue' && method === 'XcmpMessageSent';
+      }, foundEventIndex);
+      console.log('XcmpMessageSent event: ', xcmpMessageSentEvent);
+      const { messageHash } = xcmpMessageSentEvent.event.data;
+      console.log('messageHash: ', messageHash.toString());
+
+      console.log(`Listen xcmpQueue.Success event with messageHash(${messageHash}) and find proxy.ProxyExecuted event on Rocstar...`);
+      const timeout = nextExecutionTime * 1000 + 300000 - moment().valueOf();
+      const { events: xcmpQueueEvents, foundEventIndex: xcmpQueuefoundEventIndex } = await listenEvents(rocstarApi, 'xcmpQueue', 'Success', { messageHash }, timeout);
+      const proxyExecutedEvent = _.find(_.reverse(xcmpQueueEvents), (event) => {
+        const { section, method } = event.event;
+        return section === 'proxy' && method === 'ProxyExecuted';
+      }, xcmpQueueEvents.length - xcmpQueuefoundEventIndex - 1);
+      console.log('ProxyExecuted event: ', JSON.stringify(proxyExecutedEvent.event.data.toHuman()));
     } catch (error) {
       console.log(error);
     }
