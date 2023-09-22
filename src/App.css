@@ -49,10 +49,9 @@
 
 .price-feed-container {
   /* background-color: red; */
-  border: 1px solid #282c34;
-  width: 90%;
   padding: 25px;
-  border-radius: 10px;
+  border-radius: 8px;
+  background-color: #fff;
 }
 
 .modal-wrapper {
@@ -61,10 +60,9 @@
 }
 
 .swap-container {
-  border: 1px solid #282c34;
-  width: 90%;
   padding: 25px;
-  border-radius: 10px;
+  border-radius: 8px;
+  background-color: #fff;
 }
 
 .price-row {

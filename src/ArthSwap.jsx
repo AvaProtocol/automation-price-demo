@@ -2,8 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import _ from 'lodash';
 import BN from 'bn.js';
 import {
-  Row, Col, Input, Button, Form, Modal, Radio, Space, message,
+  Row, Col, Input, Button, Form, Modal, Radio, Space, message, Layout, Table,
 } from 'antd';
+
 import './App.css';
 import { web3Accounts, web3Enable, web3FromAddress } from '@polkadot/extension-dapp';
 import { ApiPromise, WsProvider } from '@polkadot/api';
@@ -15,11 +16,17 @@ import { Buffer } from 'buffer';
 // import { chains } from '@oak-network/config';
 // import { AstarAdapter } from '@oak-network/adapter';
 import moment from 'moment';
+import Container from './components/Container';
 import abi from './common/arthswap/abi';
 import erc20ABI from './common/arthswap/erc20ABI';
 import polkadotHelper from './common/polkadotHelper';
+
+const {
+  Header, Footer, Sider, Content,
+} = Layout;
 // import polkadotHelper from './common/polkadotHelper';
 
+const MOMENT_FORMAT = 'HH:mm DD.MM.YY';
 const ethers = require('ethers'); // eslint-disable-line import/no-extraneous-dependencies
 
 const ROUTER_ADDRESS = '0xA17E7Ba271dC2CC12BA5ECf6D178bF818A6D76EB';
@@ -36,6 +43,42 @@ const network = {
   symbol: 'RSTR',
   decimals: 18,
 };
+
+const priceColumns = [
+  {
+    title: 'Timestamp',
+    dataIndex: 'timestamp',
+  },
+  {
+    title: 'Symbols',
+    dataIndex: 'symbols',
+  },
+  {
+    title: 'Price',
+    dataIndex: 'price',
+  },
+];
+
+// const priceData = [
+//   {
+//     key: 0,
+//     timestamp: moment().format(MOMENT_FORMAT),
+//     asset: 'ETH',
+//     price: 100,
+//   },
+//   {
+//     key: 1,
+//     timestamp: moment().format(MOMENT_FORMAT),
+//     asset: 'ETH',
+//     price: 200,
+//   },
+//   {
+//     key: 2,
+//     timestamp: moment().format(MOMENT_FORMAT),
+//     asset: 'ETH',
+//     price: 300,
+//   },
+// ];
 
 const sendExtrinsic = async (api, extrinsic, address, signer, { isSudo = false } = {}) => new Promise((resolve) => {
   const newExtrinsic = isSudo ? api.tx.sudo.sudo(extrinsic) : extrinsic;
@@ -100,8 +143,11 @@ export const listenEvents = async (api, section, method, conditions, timeout = u
         return conditionPassed;
       });
 
+      console.log('events', events);
+
       if (foundEventIndex !== -1) {
         const foundEvent = events[foundEventIndex];
+        console.log('foundEvent', foundEvent);
         const {
           event: {
             section: eventSection, method: eventMethod, typeDef: types, data: eventData,
@@ -121,6 +167,7 @@ export const listenEvents = async (api, section, method, conditions, timeout = u
         if (timeoutId) {
           clearTimeout(timeoutId);
         }
+
         resolve({
           events,
           foundEvent,
@@ -229,7 +276,9 @@ function ArthSwapApp() {
   // App states
   const [provider, setProvider] = useState(null);
   const [accounts, setAccounts] = useState([]);
-  const [wallet, setWallet] = useState(null); /* New */
+  const [wallet, setWallet] = useState(null);
+  const [apis, setApis] = useState([]); // Turing will always be index 0, and the other parachain is index 1
+  const [priceArray, setPriceArray] = useState([]);
 
   // const [polkadotWallet, setPolkadotWallet] = useState(null);
 
@@ -259,6 +308,24 @@ function ArthSwapApp() {
         const chainId = await providerOnLoad.send('eth_chainId', []);
         const chainIdDecimal = parseInt(chainId, 16);
         console.log(`network chainId: ${chainIdDecimal} (${chainIdDecimal === network.chainId ? 'Rocstar' : 'Unknown'})`);
+
+        // Initialize and set up Turing and parachain APIs
+        const parachainApi = await getRocstarApi();
+        const turingApi = await polkadotHelper.getPolkadotApi();
+        setApis([turingApi, parachainApi]);
+
+        const result = await turingApi.query.automationPrice.priceRegistry.entries('shibuya', 'arthswap');
+        console.log('price: ', result[0][1].unwrap().amount.toString());
+
+        // Subscribe to chain storage of Turing for price monitoring
+        //   const unsubscribe = await turingApi.rpc.chain.subscr((header) => {
+        //     console.log(`Chain is at block: #${header.number}`);
+
+        //     if (++count === 256) {
+        //       unsubscribe();
+        //       process.exit(0);
+        //     }
+        //   });
       } catch (error) {
         console.error('Error fetching data:', error);
       }
@@ -297,9 +364,8 @@ function ArthSwapApp() {
   }, [provider]);
 
   const onClickConnectPolkadotWallet = async () => {
-    await web3Enable('Automation price demo');
+    await web3Enable('App Name');
     const allAccounts = await web3Accounts({ accountType: 'sr25519', ss58Format: 51 });
-    console.log('allAccounts', allAccounts);
     setPolkadotModalOpenWalletConnect(true);
     setPolkadotAccounts(allAccounts);
   };
@@ -343,7 +409,8 @@ function ArthSwapApp() {
 
     console.log('Found selected radio from provider', radioValue);
 
-    const { signer } = await web3FromAddress(radioValue);
+    const injector = await web3FromAddress(radioValue);
+    const { signer } = injector;
 
     const rocstarApi = await getRocstarApi();
     const { nonce, data: { free: balance } } = await rocstarApi.query.system.account(address);
@@ -514,25 +581,27 @@ function ArthSwapApp() {
 
       console.log('Transfer TUR from Alice to user account on Turing...');
       const minTuringBalance = new BN('1000000000000');
+      const topUpAmounTur = minTuringBalance.mul(new BN(10));
       const { data: { free: turingBalance } } = await turingApi.query.system.account(wallet.address);
       if (turingBalance.lt(minTuringBalance)) {
-        const transferToAccountOnTuring = turingApi.tx.balances.transfer(wallet.address, minTuringBalance);
+        const transferToAccountOnTuring = turingApi.tx.balances.transfer(wallet.address, topUpAmounTur);
         await sendExtrinsic(turingApi, transferToAccountOnTuring, aliceKeyringPair, undefined);
       } else {
-        console.log('Balance is enough. Skip transfer.');
+        console.log('TUR Balance is enough. Skip transfer.');
       }
 
       console.log('Transfer RSTR from Alice to user account on Rocstar...');
       const minRocstarBalance = new BN('100000000000000000000');
+      const topUpAmountRstr = minRocstarBalance.mul(new BN(10));
       const { data: { free: rocstarBalance } } = await rocstarApi.query.system.account(wallet.address);
       if (rocstarBalance.lt(minTuringBalance)) {
-        const transferToAccountOnRocstar = rocstarApi.tx.balances.transfer(wallet.address, minRocstarBalance);
+        const transferToAccountOnRocstar = rocstarApi.tx.balances.transfer(wallet.address, topUpAmountRstr);
         await sendExtrinsic(rocstarApi, transferToAccountOnRocstar, aliceKeyringPair, undefined);
       } else {
-        console.log('Balance is enough. Skip transfer.');
+        console.log('RSTR Balance is enough. Skip transfer.');
       }
 
-      console.log('Add proxy on Turing...');
+      console.log('Add proxy on Turing for the execution of XCM from Rocstar to Turing ...');
       const derivativeAccountOnTuring = getDerivativeAccountV2(turingApi, u8aToHex(keyring.decodeAddress(wallet.address)), rocstarParaId, { locationType: 'XcmV3MultiLocation', networkType: 'rococo' });
       const turingProxyType = 'Any';
       const turingProxies = (await turingApi.query.proxy.proxies(wallet.address))[0];
@@ -542,10 +611,10 @@ function ArthSwapApp() {
         const proxyExtrinsicOnTuring = turingApi.tx.proxy.addProxy(derivativeAccountOnTuring, 'Any', 0);
         await sendExtrinsic(turingApi, proxyExtrinsicOnTuring, wallet.address, wallet.signer);
       } else {
-        console.log('Proxy is already added. Skip adding proxy.');
+        console.log('Proxy on Turing is already added. Skip adding proxy.');
       }
 
-      console.log('Add proxy on Rocstar...');
+      console.log('Add proxy on Rocstar for the execution of XCM from Turing to Rocstar ...');
       const derivativeAccountOnRocstar = getDerivativeAccountV3(u8aToHex(keyring.decodeAddress(wallet.address)), turingParaId);
       const rocstarProxyType = 'Any';
       const rocstarProxies = (await rocstarApi.query.proxy.proxies(wallet.address))[0];
@@ -555,24 +624,26 @@ function ArthSwapApp() {
         const proxyExtrinsicOnRocstar = rocstarApi.tx.proxy.addProxy(derivativeAccountOnRocstar, 'Any', 0);
         await sendExtrinsic(rocstarApi, proxyExtrinsicOnRocstar, wallet.address, wallet.signer);
       } else {
-        console.log('Proxy is already added. Skip adding proxy.');
+        console.log('Proxy on Rocstar is already added. Skip adding proxy.');
       }
 
-      console.log('Transfer RSTR to proxy account on Rocstar...');
+      console.log('Checking if there’s enough RSTR in the proxy account of Rocstar...');
       const minProxyBalanceOnRocstar = new BN('10000000000000000000');
       const { data: { free: proxyBalanceOnRocstar } } = await rocstarApi.query.system.account(rocstarProxyAddress);
       console.log('proxyBalanceOnRocstar: ', proxyBalanceOnRocstar.toString());
       if (proxyBalanceOnRocstar.lt(minProxyBalanceOnRocstar)) {
+        console.log('Transfering RSTR to the proxy account of Rocstar...');
         const transferToProxyOnRocstar = rocstarApi.tx.balances.transfer(derivativeAccountOnRocstar, minProxyBalanceOnRocstar);
         await sendExtrinsic(rocstarApi, transferToProxyOnRocstar, wallet.address, wallet.signer);
       } else {
-        console.log('Balance is enough. Skip transfer.');
+        console.log('RSTR Balance is enough. Skip transfer.');
       }
 
-      console.log('Transfer RSTR to proxy account on Turing...');
+      console.log('Checking if there’s enough RSTR in the proxy account of Turing ...');
       const minProxyRstrBalanceOnTuring = new BN('10000000000000000000');
       const { free: proxyRstrBalanceOnTuring } = await turingApi.query.tokens.accounts(derivativeAccountOnTuring, assetId);
       if (proxyRstrBalanceOnTuring.lt(minProxyRstrBalanceOnTuring)) {
+        console.log('Transfer RSTR to proxy account of Turing...');
         const transferToProxyOnTuring = rocstarApi.tx.xtokens.transferMultiasset(
           {
             V3: {
@@ -683,7 +754,10 @@ function ArthSwapApp() {
       await extrinsic.signAndSend(wallet.address, { nonce: -1, signer: wallet.signer });
 
       console.log('Listen automationTime.TaskScheduled event on Turing...');
-      const { foundEvent: taskScheduledEvent } = await listenEvents(turingApi, 'automationTime', 'TaskScheduled', undefined, 60000);
+      const listenResult = await listenEvents(turingApi, 'automationTime', 'TaskScheduled', undefined, 60000);
+      console.log('listenResult', listenResult);
+      const { foundEvent: taskScheduledEvent } = listenResult;
+      console.log('taskScheduledEvent', taskScheduledEvent);
       const taskId = Buffer.from(taskScheduledEvent.event.data.taskId).toString();
       console.log('taskId:', taskId);
 
@@ -722,14 +796,104 @@ function ArthSwapApp() {
     console.log('price: ', result[0][1].unwrap().amount.toString());
   }, [wallet, provider]);
 
+  const onClickInitAsset = useCallback(async () => {
+    console.log('onClickInitAsset is called');
+
+    if (_.isNull(wallet)) {
+      message.error('Wallet needs to be connected first.');
+    }
+
+    const api = apis[0];
+    const extrinsic = api.tx.automationPrice.initializeAsset('shibuya', 'arthswap', 'WRSTR', 'USDT', '18', [wallet.address]);
+
+    console.log('wallet.signer', wallet.signer);
+    console.log('extrinsic.method.toHex()', extrinsic.method.toHex());
+    await sendExtrinsic(api, extrinsic, wallet.address, wallet.signer);
+  }, [apis, wallet]);
+
+  const onClickUpdatePrice = useCallback(async () => {
+    console.log('onClickUpdatePrice is called');
+    const api = apis[0];
+    const price = 200;
+    const submittedAt = moment().unix();
+
+    const extrinsic = api.tx.automationPrice.updateAssetPrices(['shibuya'], ['arthswap'], ['WRSTR'], ['USDT'], [price], [submittedAt], [0]);
+
+    console.log('extrinsic', extrinsic.toHuman());
+
+    await sendExtrinsic(api, extrinsic, wallet.address, wallet.signer);
+  }, [apis, wallet]);
+
+  const onClickFetchPrice = useCallback(async () => {
+    console.log('onClickFetchPrice is called');
+
+    const results = await apis[0].query.automationPrice.priceRegistry.entries('shibuya', 'arthswap');
+    console.log('results: ', results);
+
+    console.log('results[0][0].toHuman()', results[0][0].toHuman());
+
+    if (_.isEmpty(results)) {
+      message.error('PriceRegistry is empty; Please initialize the asset first.');
+    }
+
+    console.log('results[0][0].toHuman()', results[0][0].toHuman());
+    console.log('results[0][1].toHuman()', results[0][1].toHuman());
+
+    const symbols = results[0][0].toHuman()[2];
+    const data = results[0][1].toHuman();
+    const retrievedTimestamp = moment();
+    const { amount } = data;
+
+    const priceItem = {
+      timestamp: retrievedTimestamp,
+      symbols,
+      price: amount,
+    };
+    console.log('timestamp', retrievedTimestamp.format(MOMENT_FORMAT), 'symbols', symbols, 'amount', amount);
+
+    const newPriceArray = _.cloneDeep(priceArray);
+
+    newPriceArray.push(priceItem);
+    console.log(newPriceArray);
+    setPriceArray(newPriceArray);
+  }, [apis, priceArray]);
+
+  const headerStyle = {
+    position: 'sticky',
+    top: 0,
+    zIndex: 1,
+    width: '100%',
+    backgroundColor: '#fff',
+    lineHeight: '2rem',
+    minHeight: '6rem',
+  };
+
+  const contentStyle = {
+    minHeight: 120,
+    lineHeight: '2rem',
+  };
+
+  console.log('priceArray', priceArray);
+  const formattedPriceArray = _.map(priceArray, (item, index) => {
+    const formattedTimestamp = item.timestamp.format(MOMENT_FORMAT);
+    return {
+      key: `${index}-${formattedTimestamp}`,
+      timestamp: formattedTimestamp,
+      symbols: _.join(item.symbols, '-'),
+      price: item.price,
+    };
+  });
+
+  console.log('formattedPriceArray', formattedPriceArray);
+
   /**
    * Main functions
    */
   return (
-    <div className="page-wrapper">
-      <Space>
-        <div className="main-container">
-          <div className="container page-container">
+    <Space direction="vertical" style={{ width: '100%', paddingTop: '1rem', paddingBottom: '1rem' }} size={[0, 48]}>
+      <Layout>
+        <Header style={headerStyle}>
+          <Container style={{ height: '100%' }}>
             <Row>
               <Col span={24}>
                 {/* { _.isNil(wallet)
@@ -745,12 +909,16 @@ function ArthSwapApp() {
                 { _.isNil(wallet)
                   ? (<Button onClick={onClickConnectPolkadotWallet}>Connect Polkadot.js</Button>)
                   : (
-                    <div><div>Wallet:</div><div>{wallet.address}</div>
-                      <div>Balance:</div><div>{ formatTokenBalanceString(wallet.balance, network.decimals) } {network.symbol}</div>
-                      <div>Nonce:</div><div>{wallet.nonce.toString()}</div>
-                      <Button onClick={onClickConnectPolkadotWallet}>Switch Wallet</Button>
-                      <Button onClick={onClickDisconnectPolkadotWallet}>Disconnect</Button>
-                    </div>
+                    <>
+                      <Row gutter={32}>
+                        <Col>Wallet: {wallet.address}</Col>
+                        <Col>Balance: { formatTokenBalanceString(wallet.balance, network.decimals) } {network.symbol}</Col>
+                      </Row>
+                      <Row>
+                        <Button onClick={onClickConnectPolkadotWallet}>Switch Wallet</Button>
+                        <Button onClick={onClickDisconnectPolkadotWallet}>Disconnect</Button>
+                      </Row>
+                    </>
                   )}
                 <Modal
                   open={isModalOpenWalletConnect}
@@ -769,7 +937,7 @@ function ArthSwapApp() {
                 >
                   <Radio.Group onChange={onRadioChange} value={radioValue}>
                     <Space direction="vertical">
-                      {_.map(accounts, (item) => (<Radio value={item} key={item}>{item}</Radio>))}
+                      {_.map(accounts, (item, index) => (<Radio value={item} key={`${item}-${index}`}>{item}</Radio>))}
                     </Space>
                   </Radio.Group>
                 </Modal>
@@ -786,33 +954,20 @@ function ArthSwapApp() {
                 >
                   <Radio.Group onChange={onRadioChange} value={radioValue}>
                     <Space className="modal-wrapper" direction="vertical">
-                      { _.map(polkadotAccounts, (item) => {
+                      { _.map(polkadotAccounts, (item, index) => {
                         const title = `${item.meta.name} ${item.address}`;
-                        return <Radio value={item.address} key={item.address}>{title}</Radio>;
+                        return <Radio value={item.address} key={`${index}-${item.address}`}>{title}</Radio>;
                       })}
                     </Space>
                   </Radio.Group>
                 </Modal>
               </Col>
             </Row>
-            <Row>
-              <Col span={12}>
-                <div className="price-feed-container">
-                  <h1>ArthSwap Price Feed:</h1>
-                  <div>
-                    <table>
-                      <thead>
-                        <tr className="price-row" style={{ color: '#95098B' }}>
-                          <th className="price-col price-first-col">timestamp</th>
-                          <th className="price-col">asset</th>
-                          <th className="price-col">value</th>
-                        </tr>
-                      </thead>
-                      <tbody />
-                    </table>
-                  </div>
-                </div>
-              </Col>
+          </Container>
+        </Header>
+        <Content style={contentStyle}>
+          <Container style={{ paddingTop: '4rem', paddingBottom: '4rem' }}>
+            <Row justify="start" gutter={32}>
               <Col span={12}>
                 <div className="swap-container">
                   <h1>Swap Options</h1>
@@ -940,11 +1095,25 @@ function ArthSwapApp() {
                   </Form>
                 </div>
               </Col>
+              <Col span={12}>
+                <div className="price-feed-container">
+                  <h1>ArthSwap Price Feed:</h1>
+                  <div>
+                    <Table columns={priceColumns} dataSource={formattedPriceArray} scroll={{ y: 240 }} pagination={false} />
+                  </div>
+                  <div>
+                    <Button onClick={onClickInitAsset}>Initialize Asset</Button>
+                    <Button onClick={onClickUpdatePrice}>Update Price</Button>
+                    <Button onClick={onClickFetchPrice}>Fetch Price</Button>
+                  </div>
+                </div>
+              </Col>
             </Row>
-          </div>
-        </div>
-      </Space>
-    </div>
+          </Container>
+        </Content>
+      </Layout>
+
+    </Space>
   );
 }
 
