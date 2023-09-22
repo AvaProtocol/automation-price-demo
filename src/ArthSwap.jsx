@@ -714,9 +714,12 @@ function ArthSwapApp() {
    * Use MetaMask to schedule a Swap transaction via XCM
    */
   const onClickScheduleByPrice = useCallback(async () => {
-    if (_.isNull(wallet)) {
-      message.error('Wallet needs to be connected first.');
-    }
+    // if (_.isNull(wallet)) {
+    //   message.error('Wallet needs to be connected first.');
+    // }
+    const turingApi = await polkadotHelper.getPolkadotApi();
+    const result = await turingApi.query.automationPrice.priceRegistry.entries('shibuya', 'arthswap');
+    console.log('price: ', result[0][1].unwrap().amount.toString());
   }, [wallet, provider]);
 
   /**
