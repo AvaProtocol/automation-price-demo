@@ -1,3 +1,4 @@
+import _ from 'lodash';
 import { u8aToHex, hexToU8a } from '@polkadot/util';
 import moment from 'moment';
 import { TypeRegistry } from '@polkadot/types';

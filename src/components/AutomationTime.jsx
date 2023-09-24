@@ -25,13 +25,13 @@ function AutomationTimeComponent() {
   const [isModalOpen, setModalOpen] = useState(false);
   const [receipt, setReceipt] = useState(null);
 
-  /**
-   * Use MetaMask to schedule a Swap transaction via XCM
-   */
   const onClickSchedule = useCallback(async () => {
     if (_.isNull(wallet)) {
       message.error('Wallet needs to be connected first.');
     }
+
+    console.log('wallet: ', wallet);
+    console.log('apis: ', apis);
 
     try {
       const turingApi = apis[0];

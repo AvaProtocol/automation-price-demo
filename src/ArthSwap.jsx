@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import _ from 'lodash';
-import BN from 'bn.js';
 import {
   Row, Col, Input, Button, Form, Modal, Radio, Space, message, Layout, Table,
 } from 'antd';
@@ -8,25 +7,20 @@ import {
 import './App.css';
 // import { chains } from '@oak-network/config';
 // import { AstarAdapter } from '@oak-network/adapter';
-import moment from 'moment';
-import { WalletEthereumContextProvider, useWalletEthereum } from './context/WalletEthereum';
-import { WalletPolkadotContextProvider, useWalletPolkadot } from './context/WalletPolkadot';
 import PageContainer from './components/PageContainer';
 import Container from './components/Container';
 import Swap from './components/Swap';
 import AutomationTime from './components/AutomationTime';
 import AutomationPrice from './components/AutomationPrice';
-import polkadotHelper from './common/polkadotHelper';
 import { network, priceColumns, MOMENT_FORMAT } from './config';
 import WalletConnectMetamask from './components/WalletConnectMetamask';
 import WalletConnectPolkadotjs from './components/WalletConnectPolkadotjs';
-import { sendExtrinsic } from './common/utils';
+import PriceControl from './components/PriceControl';
 
 const {
   Header, Footer, Sider, Content,
 } = Layout;
 // import polkadotHelper from './common/polkadotHelper';
-
 
 /**
  * Wait for all promises to succeed, otherwise throw an exception.
@@ -40,56 +34,28 @@ export const waitPromises = (promises) => new Promise((resolve, reject) => {
 function ArthSwapApp() {
   const [swapForm] = Form.useForm();
 
-  const {
-    wallet, setWallet, provider, setProvider,
-  } = useWalletEthereum();
-
   // App states
-  const [apis, setApis] = useState([]); // Turing will always be index 0, and the other parachain is index 1
   const [priceArray, setPriceArray] = useState([]);
 
-  // const [polkadotWallet, setPolkadotWallet] = useState(null);
-
   useEffect(() => {
+    // Initialize the wallet provider. This code will run once after the component has rendered for the first time
     async function asyncInit() {
       try {
-        // const chainId = await providerOnLoad.send('eth_chainId', []);
-        // const chainIdDecimal = parseInt(chainId, 16);
-        // console.log(`network chainId: ${chainIdDecimal} (${chainIdDecimal === network.chainId ? 'Rocstar' : 'Unknown'})`);
-
-        // // Initialize and set up Turing and parachain APIs
-        // const wsProvider = new WsProvider(network.endpoint);
-        // const parachainApi = await ApiPromise.create({ provider: wsProvider });
-
-        // const turingApi = await polkadotHelper.getPolkadotApi();
-        // setApis([turingApi, parachainApi]);
-
-        // const result = await turingApi.query.automationPrice.priceRegistry.entries('shibuya', 'arthswap');
-        // console.log('price: ', result[0][1].unwrap().amount.toString());
-
-        // Subscribe to chain storage of Turing for price monitoring
-        //   const unsubscribe = await turingApi.rpc.chain.subscr((header) => {
-        //     console.log(`Chain is at block: #${header.number}`);
-
-        //     if (++count === 256) {
-        //       unsubscribe();
-        //       process.exit(0);
-        //     }
-        //   });
+        console.log('Page compoents are mounted.');
       } catch (error) {
         console.error('Error fetching data:', error);
       }
     }
 
     asyncInit(); // Call the async function inside useEffect
-
-    // You can perform any cleanup or additional actions here if needed
-    // For example, removing event listeners or making API requests
-    // Be sure to return a cleanup function if necessary
     return () => {
       // Cleanup code here (if needed)
     };
   }, []); // The empty dependency array [] ensures that this effect runs only once, similar to componentDidMount
+
+  useEffect(() => {
+    console.log('useEffect.priceArray: ', priceArray);
+  }, [priceArray]);
 
   const onFinish = (values) => {
     console.log('values: ', values);
@@ -98,80 +64,6 @@ function ArthSwapApp() {
   const onValuesChange = () => {};
 
   const volatilityElement = null;
-
-  /**
-   * Use MetaMask to schedule a Swap transaction via XCM
-   */
-  const onClickScheduleByPrice = useCallback(async () => {
-    // if (_.isNull(wallet)) {
-    //   message.error('Wallet needs to be connected first.');
-    // }
-    const turingApi = await polkadotHelper.getPolkadotApi();
-    const result = await turingApi.query.automationPrice.priceRegistry.entries('shibuya', 'arthswap');
-    console.log('price: ', result[0][1].unwrap().amount.toString());
-  }, [wallet, provider]);
-
-  const onClickInitAsset = useCallback(async () => {
-    console.log('onClickInitAsset is called');
-
-    if (_.isNull(wallet)) {
-      message.error('Wallet needs to be connected first.');
-    }
-
-    const api = apis[0];
-    const extrinsic = api.tx.automationPrice.initializeAsset('shibuya', 'arthswap', 'WRSTR', 'USDT', '18', [wallet?.address]);
-
-    console.log('wallet?.signer', wallet?.signer);
-    console.log('extrinsic.method.toHex()', extrinsic.method.toHex());
-    await sendExtrinsic(api, extrinsic, wallet?.address, wallet?.signer);
-  }, [apis, wallet]);
-
-  const onClickUpdatePrice = useCallback(async () => {
-    console.log('onClickUpdatePrice is called');
-    const api = apis[0];
-    const price = 80;
-    const submittedAt = moment().unix();
-
-    const extrinsic = api.tx.automationPrice.updateAssetPrices(['shibuya'], ['arthswap'], ['WRSTR'], ['USDT'], [price], [submittedAt], [0]);
-
-    console.log('extrinsic', extrinsic.toHuman());
-
-    await sendExtrinsic(api, extrinsic, wallet?.address, wallet?.signer);
-  }, [apis, wallet]);
-
-  const onClickFetchPrice = useCallback(async () => {
-    console.log('onClickFetchPrice is called');
-
-    const results = await apis[0].query.automationPrice.priceRegistry.entries('shibuya', 'arthswap');
-    console.log('results: ', results);
-
-    console.log('results[0][0].toHuman()', results[0][0].toHuman());
-
-    if (_.isEmpty(results)) {
-      message.error('PriceRegistry is empty; Please initialize the asset first.');
-    }
-
-    console.log('results[0][0].toHuman()', results[0][0].toHuman());
-    console.log('results[0][1].toHuman()', results[0][1].toHuman());
-
-    const symbols = results[0][0].toHuman()[2];
-    const data = results[0][1].toHuman();
-    const retrievedTimestamp = moment();
-    const { amount } = data;
-
-    const priceItem = {
-      timestamp: retrievedTimestamp,
-      symbols,
-      price: amount,
-    };
-    console.log('timestamp', retrievedTimestamp.format(MOMENT_FORMAT), 'symbols', symbols, 'amount', amount);
-
-    const newPriceArray = _.cloneDeep(priceArray);
-
-    newPriceArray.push(priceItem);
-    console.log(newPriceArray);
-    setPriceArray(newPriceArray);
-  }, [apis, priceArray]);
 
   const headerStyle = {
     position: 'sticky',
@@ -208,14 +100,10 @@ function ArthSwapApp() {
           <PageContainer style={{ height: '100%' }}>
             <Row>
               <Col span={12}>
-                <WalletPolkadotContextProvider>
-                  <WalletConnectPolkadotjs />
-                </WalletPolkadotContextProvider>
+                <WalletConnectPolkadotjs />
               </Col>
               <Col span={12}>
-                <WalletEthereumContextProvider>
-                  <WalletConnectMetamask />
-                </WalletEthereumContextProvider>
+                <WalletConnectMetamask />
               </Col>
             </Row>
           </PageContainer>
@@ -227,13 +115,9 @@ function ArthSwapApp() {
                 <Container>
                   <Space direction="vertical">
                     <h2>Swap Options</h2>
-                    <WalletEthereumContextProvider>
-                      <Swap />
-                    </WalletEthereumContextProvider>
-                    <WalletPolkadotContextProvider>
-                      <AutomationTime />
-                      <AutomationPrice />
-                    </WalletPolkadotContextProvider>
+                    <Swap />
+                    <AutomationTime />
+                    <AutomationPrice />
                     {/* <Form
                       form={swapForm}
                       name="basic"
@@ -330,7 +214,6 @@ function ArthSwapApp() {
                             )}
                           </dl>
                         </Modal>
-                        <Button onClick={onClickScheduleByPrice}>Schedule by Price</Button>
                       </div>
                     </Form> */}
                   </Space>
@@ -342,11 +225,7 @@ function ArthSwapApp() {
                   <div>
                     <Table columns={priceColumns} dataSource={formattedPriceArray} scroll={{ y: 240 }} pagination={false} />
                   </div>
-                  <Space size="middle">
-                    <Button onClick={onClickInitAsset}>Initialize Asset</Button>
-                    <Button onClick={onClickUpdatePrice}>Update Price</Button>
-                    <Button onClick={onClickFetchPrice}>Fetch Price</Button>
-                  </Space>
+                  <PriceControl priceArray={priceArray} setPriceArray={setPriceArray} />
                 </Container>
               </Col>
             </Row>

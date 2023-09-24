@@ -111,7 +111,6 @@ function WalletConnectPolkadotjs() {
     const injector = await web3FromAddress(radioValue);
     const { signer } = injector;
 
-    console.log('apis', apis);
     const parachainApi = apis[1];
     const { nonce, data: { free: balance } } = await parachainApi.query.system.account(address);
 

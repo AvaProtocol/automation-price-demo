@@ -15,6 +15,7 @@
         "import/no-named-as-default": "warn",
         "react/jsx-one-expression-per-line": "off",
         "react/jsx-props-no-spreading": "off",
-        "react/prop-types": [2, { "ignore": ["children"] }]
+        "react/prop-types": [2, { "ignore": ["children"] }],
+        "react/forbid-prop-types":"off"
     }
 }
