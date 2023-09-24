@@ -4,7 +4,6 @@ import {
   Row, Col, Input, Button, Form, Modal, Radio, Space, message, Layout, Table,
 } from 'antd';
 
-import './App.css';
 // import { chains } from '@oak-network/config';
 // import { AstarAdapter } from '@oak-network/adapter';
 import PageContainer from './components/PageContainer';
