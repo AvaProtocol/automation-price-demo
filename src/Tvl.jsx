@@ -162,7 +162,7 @@ function Tvl() {
           <Row>
             <Col span={12} className="d-flex justify-content-center">
               <div className="price-feed-container">
-                <h1>TVL Feed</h1>
+                <h2>TVL Feed</h2>
                 <div>
                   <table>
                     <tbody>
@@ -174,7 +174,7 @@ function Tvl() {
             </Col>
             <Col span={12} className="d-flex justify-content-center">
               <div className="swap-container">
-                <h1 style={{ marginBottom: 30 }}>Liquidate</h1>
+                <h1 style={{ marginBottom: 30 }}>Liquidate</h2>
                 <Form
                   form={swapForm}
                   name="basic"
@@ -248,7 +248,7 @@ function Tvl() {
       { accountSelectorVisible && (
         <div className="modal-background">
           <div className="modal-window">
-            <h1 className="account-title">Select Account</h1>
+            <h1 className="account-title">Select Account</h2>
             {accountRows}
           </div>
         </div>

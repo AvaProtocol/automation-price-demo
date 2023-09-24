@@ -1,4 +1,4 @@
-.App {
+/* .App {
   text-align: center;
 }
 
@@ -48,7 +48,6 @@
 }
 
 .price-feed-container {
-  /* background-color: red; */
   padding: 25px;
   border-radius: 8px;
   background-color: #fff;
@@ -106,7 +105,6 @@ button.ant-btn.connect-wallet-button:hover {
 
 .modal-background {
   background-color: rgba(0, 0, 0, 0.9);
-  /* opacity: 0.5; */
   width: 100%;
   height: 100%;
   position: absolute;
@@ -187,4 +185,4 @@ button.ant-btn.connect-wallet-button:hover {
   padding-top: 10px;
   margin-bottom: 34px;
   border-bottom: 1px solid #666;
-}
+} */

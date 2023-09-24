@@ -152,7 +152,7 @@ function Swap() {
           <Row>
             <Col span={12}>
               <div className="price-feed-container">
-                <h1>Price Feed: MGX / KSM</h1>
+                <h2>Price Feed: MGX / KSM</h2>
                 <div>
                   <table>
                     <thead>
@@ -171,7 +171,7 @@ function Swap() {
             </Col>
             <Col span={12}>
               <div className="swap-container">
-                <h1>Swap Options</h1>
+                <h2>Swap Options</h2>
                 <div style={{ paddingTop: 12, paddingBottom: 24 }}>
                   <div className="current-price">
                     Base price:
@@ -299,7 +299,7 @@ function Swap() {
       { accountSelectorVisible && (
         <div className="modal-background">
           <div className="modal-window">
-            <h1 className="account-title">Select Account</h1>
+            <h1 className="account-title">Select Account</h2>
             {accountRows}
           </div>
         </div>
