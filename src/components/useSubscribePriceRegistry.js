@@ -8,6 +8,7 @@ const useSubscribePriceRegistry = (updateAssetPriceFunc) => {
   const updateAssetPriceFuncRef = useRef(() => {});
 
   useLayoutEffect(() => {
+    // To avoid closures referencing the same state, assign a value to updateAssetPriceFuncRef.current when updating layout.
     updateAssetPriceFuncRef.current = updateAssetPriceFunc;
   });
 
