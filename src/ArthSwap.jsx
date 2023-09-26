@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, {
+  useState, useEffect, useCallback, useRef, useLayoutEffect,
+} from 'react';
 import _ from 'lodash';
 import {
   Row, Col, Input, Button, Form, Modal, Radio, Space, message, Layout, Table,
@@ -6,6 +8,7 @@ import {
 
 // import { chains } from '@oak-network/config';
 // import { AstarAdapter } from '@oak-network/adapter';
+import moment from 'moment';
 import PageContainer from './components/PageContainer';
 import Container from './components/Container';
 import Swap from './components/Swap';
@@ -15,6 +18,8 @@ import { network, priceColumns, MOMENT_FORMAT } from './config';
 import WalletConnectMetamask from './components/WalletConnectMetamask';
 import WalletConnectPolkadotjs from './components/WalletConnectPolkadotjs';
 import PriceControl from './components/PriceControl';
+import { useWalletPolkadot } from './context/WalletPolkadot';
+import useSubscribePriceRegistry from './components/useSubscribePriceRegistry';
 
 const {
   Header, Footer, Sider, Content,
@@ -31,7 +36,7 @@ export const waitPromises = (promises) => new Promise((resolve, reject) => {
 });
 
 function ArthSwapApp() {
-  const [swapForm] = Form.useForm();
+  const { apis } = useWalletPolkadot();
 
   // App states
   const [priceArray, setPriceArray] = useState([]);
@@ -55,6 +60,25 @@ function ArthSwapApp() {
   useEffect(() => {
     console.log('useEffect.priceArray: ', priceArray);
   }, [priceArray]);
+
+  const updateAssetPrice = async (price) => {
+    const symbols = ['WRSTR', 'USDT'];
+    // Do not insert the same price.
+    if (price.eq(priceArray[priceArray.length - 1]?.price)) {
+      return;
+    }
+    const retrievedTimestamp = moment();
+    const priceItem = {
+      timestamp: retrievedTimestamp,
+      symbols,
+      price,
+    };
+    const newPriceArray = [...priceArray];
+    newPriceArray.push(priceItem);
+    setPriceArray(newPriceArray);
+  };
+
+  useSubscribePriceRegistry(updateAssetPrice);
 
   const onFinish = (values) => {
     console.log('values: ', values);
@@ -85,7 +109,7 @@ function ArthSwapApp() {
       key: `${index}-${formattedTimestamp}`,
       timestamp: formattedTimestamp,
       symbols: _.join(item.symbols, '-'),
-      price: item.price,
+      price: item.price.toString(),
     };
   });
 
@@ -222,7 +246,7 @@ function ArthSwapApp() {
                 <Container>
                   <h2>ArthSwap Price Feed:</h2>
                   <div>
-                    <Table columns={priceColumns} dataSource={formattedPriceArray} scroll={{ y: 240 }} pagination={false} />
+                    <Table columns={priceColumns} dataSource={_.reverse(formattedPriceArray)} scroll={{ y: 240 }} pagination={false} />
                   </div>
                   <PriceControl priceArray={priceArray} setPriceArray={setPriceArray} />
                 </Container>

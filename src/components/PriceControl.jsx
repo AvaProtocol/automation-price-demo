@@ -1,24 +1,19 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useCallback, useEffect } from 'react';
 import _ from 'lodash';
 import moment from 'moment';
 import PropTypes from 'prop-types'; // Import PropTypes
 
 import {
-  Button, Space, Modal, message, Radio,
+  Button, Space, message,
 } from 'antd';
 import { useWalletPolkadot } from '../context/WalletPolkadot';
-import { network, MOMENT_FORMAT } from '../config';
+import { MOMENT_FORMAT } from '../config';
 import { sendExtrinsic } from '../common/utils';
 
 function PriceControl({ priceArray, setPriceArray }) {
   const {
     wallet, apis,
   } = useWalletPolkadot();
-
-  const [isModalLoading, setModalLoading] = useState(false);
-  const [isModalOpen, setModalOpen] = useState(false);
-  const [radioValue, setRadioValue] = useState(1);
-  const [accounts, setAccounts] = useState([]);
 
   useEffect(() => {
     // Initialize the wallet provider. This code will run once after the component has rendered for the first time
@@ -82,19 +77,18 @@ function PriceControl({ priceArray, setPriceArray }) {
     // const results = await apis[0].query.automationPrice.priceRegistry.entries('shibuya', 'arthswap');
 
     const symbols = ['WRSTR', 'USDT'];
-    const results = await apis[0].query.automationPrice.priceRegistry('shibuya', 'arthswap', symbols);
+    const result = await apis[0].query.automationPrice.priceRegistry('shibuya', 'arthswap', ['WRSTR', 'USDT']);
+    console.log('amount: ', result.unwrap().amount.toHuman());
 
-    console.log('results: ', results);
-    if (_.isEmpty(results)) {
+    if (result.isNone) {
       message.error('PriceRegistry is empty; Please initialize the asset first.');
       return;
     }
 
-    console.log('results.toHuman()', results.toHuman());
+    console.log('result', result.toHuman());
 
-    const data = results.toJSON();
     const retrievedTimestamp = moment();
-    const { amount } = data;
+    const { amount } = result.unwrap();
 
     const priceItem = {
       timestamp: retrievedTimestamp,
@@ -103,7 +97,8 @@ function PriceControl({ priceArray, setPriceArray }) {
     };
     console.log('timestamp', retrievedTimestamp.format(MOMENT_FORMAT), 'symbols', symbols, 'amount', amount);
 
-    const newPriceArray = _.cloneDeep(priceArray);
+    console.log('priceArray: ', priceArray);
+    const newPriceArray = [...priceArray];
 
     newPriceArray.push(priceItem);
     console.log(newPriceArray);
