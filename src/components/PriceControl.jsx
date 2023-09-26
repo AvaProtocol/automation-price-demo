@@ -72,20 +72,27 @@ function PriceControl({ priceArray, setPriceArray }) {
   const onClickFetchPrice = useCallback(async () => {
     console.log('onClickFetchPrice is called');
 
-    const results = await apis[0].query.automationPrice.priceRegistry.entries('shibuya', 'arthswap');
+    // entries can be used to query all the entries when we want to iterate over all the pair
+    // in this case, we already know the SYMBOL so we can look at this key directly use the full tuple
+    // when using entries we received back an array of key/value pair which we can iterate over to parse
+    // both of key and its value
+    // Read more at:
+    //   https://polkadot.js.org/docs/api/start/api.query/
+    //   https://polkadot.js.org/docs/api/cookbook/storage#how-do-i-use-entrieskeys-on-double-maps
+    // const results = await apis[0].query.automationPrice.priceRegistry.entries('shibuya', 'arthswap');
+
+    const symbols = ['WRSTR', 'USDT'];
+    const results = await apis[0].query.automationPrice.priceRegistry('shibuya', 'arthswap', symbols);
+
     console.log('results: ', results);
-
-    console.log('results[0][0].toHuman()', results[0][0].toHuman());
-
     if (_.isEmpty(results)) {
       message.error('PriceRegistry is empty; Please initialize the asset first.');
+      return;
     }
 
-    console.log('results[0][0].toHuman()', results[0][0].toHuman());
-    console.log('results[0][1].toHuman()', results[0][1].toHuman());
+    console.log('results.toHuman()', results.toHuman());
 
-    const symbols = results[0][0].toHuman()[2];
-    const data = results[0][1].toHuman();
+    const data = results.toJSON();
     const retrievedTimestamp = moment();
     const { amount } = data;
 
