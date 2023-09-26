@@ -1,11 +1,11 @@
-import React, { useState, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import _ from 'lodash';
 import BN from 'bn.js';
 import moment from 'moment';
-import { u8aToHex, hexToU8a } from '@polkadot/util';
+import { u8aToHex } from '@polkadot/util';
 import { Buffer } from 'buffer';
 import {
-  Button, Space, Modal, message,
+  Button, Space, message,
 } from 'antd';
 import Keyring from '@polkadot/keyring';
 
@@ -20,10 +20,6 @@ function AutomationTimeComponent() {
   const {
     wallet, apis,
   } = useWalletPolkadot();
-
-  const [isModalLoading, setModalLoading] = useState(false);
-  const [isModalOpen, setModalOpen] = useState(false);
-  const [receipt, setReceipt] = useState(null);
 
   const onClickSchedule = useCallback(async () => {
     if (_.isNull(wallet)) {
@@ -90,6 +86,8 @@ function AutomationTimeComponent() {
         console.log('Proxy on Turing is already added. Skip adding proxy.');
       }
 
+      const batchExtrinsics = [];
+
       console.log('Add proxy on Parachain for the execution of XCM from Turing to Parachain ...');
       const derivativeAccountOnParachain = getDerivativeAccountV3(u8aToHex(keyring.decodeAddress(wallet?.address)), turingParaId);
       const parachainProxyType = 'Any';
@@ -98,7 +96,8 @@ function AutomationTimeComponent() {
       const matchedProxyOnParachain = _.find(parachainProxies, ({ delegate, proxyType }) => delegate.toString() === parachainProxyAddress && proxyType.toString() === parachainProxyType);
       if (!matchedProxyOnParachain) {
         const proxyExtrinsicOnParachain = parachainApi.tx.proxy.addProxy(derivativeAccountOnParachain, 'Any', 0);
-        await sendExtrinsic(parachainApi, proxyExtrinsicOnParachain, wallet?.address, wallet?.signer);
+        batchExtrinsics.push(proxyExtrinsicOnParachain);
+        console.log('Added extrinsic to batchExtrinsics: ', proxyExtrinsicOnParachain.method.toHex());
       } else {
         console.log('Proxy on Parachain is already added. Skip adding proxy.');
       }
@@ -110,7 +109,8 @@ function AutomationTimeComponent() {
       if (proxyBalanceOnParachain.lt(minProxyBalanceOnParachain)) {
         console.log('Transfering RSTR to the proxy account of Parachain...');
         const transferToProxyOnParachain = parachainApi.tx.balances.transfer(derivativeAccountOnParachain, minProxyBalanceOnParachain);
-        await sendExtrinsic(parachainApi, transferToProxyOnParachain, wallet?.address, wallet?.signer);
+        batchExtrinsics.push(transferToProxyOnParachain);
+        console.log('Added extrinsic to batchExtrinsics, extrinsic: ', transferToProxyOnParachain.method.toHex());
       } else {
         console.log('RSTR Balance is enough. Skip transfer.');
       }
@@ -140,7 +140,8 @@ function AutomationTimeComponent() {
           },
           'Unlimited',
         );
-        await sendExtrinsic(parachainApi, transferToProxyOnTuring, wallet?.address, wallet?.signer);
+        batchExtrinsics.push(transferToProxyOnTuring);
+        console.log('Added extrinsic to batchExtrinsics, extrinsic: ', transferToProxyOnTuring.method.toHex());
       } else {
         console.log('Balance is enough. Skip transfer.');
       }
@@ -227,8 +228,11 @@ function AutomationTimeComponent() {
 
       const dest = { V3: { parents: 1, interior: { X1: { Parachain: turingParaId } } } };
       const extrinsic = parachainApi.tx.polkadotXcm.send(dest, xcmMessage);
-      console.log('extrinsic: ', extrinsic.method.toHex());
-      await extrinsic.signAndSend(wallet?.address, { nonce: -1, signer: wallet?.signer });
+      batchExtrinsics.push(extrinsic);
+      console.log('Added extrinsic to batchExtrinsics, extrinsic: ', extrinsic.method.toHex());
+
+      console.log('Send batchExtrinsics to chain: ', batchExtrinsics.map((item) => item.method.toHex()));
+      await parachainApi.tx.utility.batch(batchExtrinsics).signAndSend(wallet?.address, { nonce: -1, signer: wallet?.signer });
 
       console.log('Listen automationTime.TaskScheduled event on Turing...');
       const listenResult = await listenEvents(turingApi, 'automationTime', 'TaskScheduled', undefined, 60000);
@@ -239,7 +243,12 @@ function AutomationTimeComponent() {
       console.log('taskId:', taskId);
 
       console.log(`Listen automationTime.TaskTriggered event with taskId(${taskId}) and find xcmpQueue.XcmpMessageSent event on Turing...`);
-      const { events, foundEventIndex } = await listenEvents(turingApi, 'automationTime', 'TaskTriggered', { taskId }, 60000);
+      const listenEventsResult = await listenEvents(turingApi, 'automationTime', 'TaskTriggered', { taskId }, 60000);
+      if (_.isNull(listenEventsResult)) {
+        console.log('No automationTime.TaskTriggered event found.');
+        return;
+      }
+      const { events, foundEventIndex } = listenEventsResult;
       const xcmpMessageSentEvent = _.find(events, (event) => {
         const { section, method } = event.event;
         return section === 'xcmpQueue' && method === 'XcmpMessageSent';
@@ -250,7 +259,12 @@ function AutomationTimeComponent() {
 
       console.log(`Listen xcmpQueue.Success event with messageHash(${messageHash}) and find proxy.ProxyExecuted event on Parachain...`);
       const timeout = nextExecutionTime * 1000 + 300000 - moment().valueOf();
-      const { events: xcmpQueueEvents, foundEventIndex: xcmpQueuefoundEventIndex } = await listenEvents(parachainApi, 'xcmpQueue', 'Success', { messageHash }, timeout);
+      const result = await listenEvents(parachainApi, 'xcmpQueue', 'Success', { messageHash }, timeout);
+      if (_.isNull(result)) {
+        console.log('No xcmpQueue.Success event found.');
+        return;
+      }
+      const { events: xcmpQueueEvents, foundEventIndex: xcmpQueuefoundEventIndex } = result;
       const proxyExecutedEvent = _.find(_.reverse(xcmpQueueEvents), (event) => {
         const { section, method } = event.event;
         return section === 'proxy' && method === 'ProxyExecuted';

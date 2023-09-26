@@ -86,6 +86,8 @@ function AutomationTimeComponent() {
         console.log('Proxy on Turing is already added. Skip adding proxy.');
       }
 
+      const batchExtrinsics = [];
+
       console.log('Add proxy on Parachain for the execution of XCM from Turing to Parachain ...');
       const derivativeAccountOnParachain = getDerivativeAccountV3(u8aToHex(keyring.decodeAddress(wallet?.address)), turingParaId);
       const parachainProxyType = 'Any';
@@ -94,7 +96,8 @@ function AutomationTimeComponent() {
       const matchedProxyOnParachain = _.find(parachainProxies, ({ delegate, proxyType }) => delegate.toString() === parachainProxyAddress && proxyType.toString() === parachainProxyType);
       if (!matchedProxyOnParachain) {
         const proxyExtrinsicOnParachain = parachainApi.tx.proxy.addProxy(derivativeAccountOnParachain, 'Any', 0);
-        await sendExtrinsic(parachainApi, proxyExtrinsicOnParachain, wallet?.address, wallet?.signer);
+        batchExtrinsics.push(proxyExtrinsicOnParachain);
+        console.log('Added extrinsic to batchExtrinsics: ', proxyExtrinsicOnParachain.method.toHex());
       } else {
         console.log('Proxy on Parachain is already added. Skip adding proxy.');
       }
@@ -106,7 +109,8 @@ function AutomationTimeComponent() {
       if (proxyBalanceOnParachain.lt(minProxyBalanceOnParachain)) {
         console.log('Transfering RSTR to the proxy account of Parachain...');
         const transferToProxyOnParachain = parachainApi.tx.balances.transfer(derivativeAccountOnParachain, minProxyBalanceOnParachain);
-        await sendExtrinsic(parachainApi, transferToProxyOnParachain, wallet?.address, wallet?.signer);
+        batchExtrinsics.push(transferToProxyOnParachain);
+        console.log('Added extrinsic to batchExtrinsics, extrinsic: ', transferToProxyOnParachain.method.toHex());
       } else {
         console.log('RSTR Balance is enough. Skip transfer.');
       }
@@ -136,7 +140,8 @@ function AutomationTimeComponent() {
           },
           'Unlimited',
         );
-        await sendExtrinsic(parachainApi, transferToProxyOnTuring, wallet?.address, wallet?.signer);
+        batchExtrinsics.push(transferToProxyOnTuring);
+        console.log('Added extrinsic to batchExtrinsics, extrinsic: ', transferToProxyOnTuring.method.toHex());
       } else {
         console.log('Balance is enough. Skip transfer.');
       }
@@ -237,8 +242,11 @@ function AutomationTimeComponent() {
 
       const dest = { V3: { parents: 1, interior: { X1: { Parachain: turingParaId } } } };
       const extrinsic = parachainApi.tx.polkadotXcm.send(dest, xcmMessage);
-      console.log('extrinsic: ', extrinsic.method.toHex());
-      await extrinsic.signAndSend(wallet?.address, { nonce: -1, signer: wallet?.signer });
+      batchExtrinsics.push(extrinsic);
+      console.log('Added extrinsic to batchExtrinsics, extrinsic: ', extrinsic.method.toHex());
+
+      console.log('Send batchExtrinsics to chain: ', batchExtrinsics.map((item) => item.method.toHex()));
+      await parachainApi.tx.utility.batch(batchExtrinsics).signAndSend(wallet?.address, { nonce: -1, signer: wallet?.signer });
 
       console.log('Listen automationPrice.TaskScheduled event on Turing...');
       const listenResult = await listenEvents(turingApi, 'automationPrice', 'TaskScheduled', undefined, 60000);
