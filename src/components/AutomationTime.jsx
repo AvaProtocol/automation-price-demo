@@ -264,7 +264,7 @@ function AutomationTimeComponent() {
       console.log('messageHash: ', messageHash.toString());
 
       console.log(`Listen xcmpQueue.Success event with messageHash(${messageHash}) and find proxy.ProxyExecuted event on Parachain...`);
-      const timeout = nextExecutionTime * 1000 + 300000 - moment().valueOf();
+      const timeout = nextWholeTenMin * 1000 + 300000 - moment().valueOf();
       const result = await listenEvents(parachainApi, 'xcmpQueue', 'Success', { messageHash }, timeout);
       if (_.isNull(result)) {
         console.log('No xcmpQueue.Success event found.');
