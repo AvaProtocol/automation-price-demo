@@ -13,6 +13,7 @@ import { useWalletPolkadot } from '../context/WalletPolkadot';
 import {
   listenEvents, sendExtrinsic, getDerivativeAccountV2, getDerivativeAccountV3,
 } from '../common/utils';
+import SignButton from './SignButton';
 
 import { WEIGHT_REF_TIME_PER_SECOND } from '../config';
 
@@ -276,7 +277,8 @@ function AutomationTimeComponent() {
   }, [wallet, apis]);
 
   return (
-    <Button onClick={onClickScheduleByPrice}>Limit Order</Button>
+    <SignButton tooltip="Please connect a polkadot.js wallet first" onClickCallback={onClickScheduleByPrice} wallet={wallet}>Limit Order</SignButton>
+
   );
 }
 

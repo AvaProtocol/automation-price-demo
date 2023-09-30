@@ -15,6 +15,7 @@ import {
 } from '../common/utils';
 
 import { WEIGHT_REF_TIME_PER_SECOND } from '../config';
+import SignButton from './SignButton';
 
 function AutomationTimeComponent() {
   const {
@@ -167,10 +168,15 @@ function AutomationTimeComponent() {
       const fee = await parachainApi.call.transactionPaymentApi.queryWeightToFee(taskOverallWeight);
       const scheduleFeeLocation = { V3: { parents: 1, interior: { X1: { Parachain: parachainParaId } } } };
       const executionFee = { assetLocation: { V3: { parents: 1, interior: { X1: { Parachain: parachainParaId } } } }, amount: fee };
-      const nextExecutionTime = getHourlyTimestamp(1) / 1000;
-      // const timestampTwoHoursLater = getHourlyTimestamp(2) / 1000;
-      // const schedule = { Fixed: { executionTimes: [nextExecutionTime, timestampTwoHoursLater] } };
-      const schedule = { Fixed: { executionTimes: [0] } };
+
+      // For immediate execution in dev environment
+      // const schedule = { Fixed: { executionTimes: [0] } };
+
+      // Recur every 10 minutes, starting from the next whole 10 minutes
+      const nowInSeconds = (moment().valueOf()) / 1000;
+      const nextWholeTenMin = nowInSeconds - (nowInSeconds % 600) + 600;
+      const schedule = { Recurring: { frequency: 600, nextExecutionTime: nextWholeTenMin } };
+
       const taskExtrinsic = turingApi.tx.automationTime.scheduleXcmpTaskThroughProxy(
         schedule,
         { V3: { parents: 1, interior: { X1: { Parachain: parachainParaId } } } },
@@ -236,18 +242,18 @@ function AutomationTimeComponent() {
 
       console.log('Listen automationTime.TaskScheduled event on Turing...');
       const listenResult = await listenEvents(turingApi, 'automationTime', 'TaskScheduled', undefined, 60000);
-      console.log('listenResult', listenResult);
       const { foundEvent: taskScheduledEvent } = listenResult;
-      console.log('taskScheduledEvent', taskScheduledEvent);
       const taskId = Buffer.from(taskScheduledEvent.event.data.taskId).toString();
-      console.log('taskId:', taskId);
+      console.log('Found taskId from TaskScheduled event:', taskId);
 
       console.log(`Listen automationTime.TaskTriggered event with taskId(${taskId}) and find xcmpQueue.XcmpMessageSent event on Turing...`);
       const listenEventsResult = await listenEvents(turingApi, 'automationTime', 'TaskTriggered', { taskId }, 60000);
+
       if (_.isNull(listenEventsResult)) {
         console.log('No automationTime.TaskTriggered event found.');
         return;
       }
+
       const { events, foundEventIndex } = listenEventsResult;
       const xcmpMessageSentEvent = _.find(events, (event) => {
         const { section, method } = event.event;
@@ -276,7 +282,7 @@ function AutomationTimeComponent() {
   }, [wallet, apis]);
 
   return (
-    <Button onClick={onClickSchedule}>Daily Cost Average</Button>
+    <SignButton tooltip="Please connect a polkadot.js wallet first" onClickCallback={onClickSchedule} wallet={wallet}>Daily Cost Average</SignButton>
   );
 }
 
