@@ -8,24 +8,17 @@ import {
 function SignButton({
   wallet, onClickCallback, tooltip, children,
 }) {
-  const onClick = useCallback(async () => {
-    console.log('SignButton.onClick.wallet', wallet);
+  const onClick = async () => {
     if (_.isNull(wallet)) {
       message.error('Wallet needs to be connected first.');
       return;
     }
 
-    console.log('SignButton.onClick.onClickCallback', onClickCallback);
-    // try {
     onClickCallback().catch((error) => {
       console.log('onClickCallback.error?.message', error?.message);
       message.error(error?.message);
     });
-    // } catch (error) {
-    //   console.log('error?.message', error?.message);
-    //   message.error(error?.message);
-    // }
-  }, [wallet]);
+  };
 
   return (wallet
     ? <AntButton key="submit" onClick={onClick}>{children}</AntButton>

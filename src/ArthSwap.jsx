@@ -29,6 +29,9 @@ const {
 } = Layout;
 // import polkadotHelper from './common/polkadotHelper';
 
+const PRICE_START = 80;
+const PRICE_INCREMENT = 20;
+
 /**
  * Wait for all promises to succeed, otherwise throw an exception.
  * @param {*} promises
@@ -43,6 +46,7 @@ function ArthSwapApp() {
 
   // App states
   const [priceArray, setPriceArray] = useState([]);
+  const [currentPrice, setCurrentPrice] = useState(PRICE_START);
 
   useEffect(() => {
     // Initialize the wallet provider. This code will run once after the component has rendered for the first time
@@ -63,6 +67,10 @@ function ArthSwapApp() {
   useEffect(() => {
     console.log('useEffect.priceArray: ', priceArray);
   }, [priceArray]);
+
+  useEffect(() => {
+    console.log('useEffect.currentPrice: ', currentPrice);
+  }, [currentPrice]);
 
   const updateAssetPrice = async (price) => {
     const symbols = ['WRSTR', 'USDT'];
@@ -248,6 +256,7 @@ function ArthSwapApp() {
               <Col span={12}>
                 <Container>
                   <h2>ArthSwap Price Feed</h2>
+                  <span>Current Price: {currentPrice}</span>
                   <div>
                     <Table dataSource={_.reverse(formattedPriceArray)} scroll={{ y: 240 }} pagination={false}>
                       <Column title="Timestamp" dataIndex="timestamp" key="timestamp" />
@@ -255,7 +264,7 @@ function ArthSwapApp() {
                       <Column title="Price" dataIndex="price" key="price" />
                     </Table>
                   </div>
-                  <PriceControl priceArray={priceArray} setPriceArray={setPriceArray} />
+                  <PriceControl priceArray={priceArray} setPriceArray={setPriceArray} currentPrice={currentPrice} setCurrentPrice={setCurrentPrice} step={PRICE_INCREMENT} />
                 </Container>
               </Col>
               <Col span={24}>

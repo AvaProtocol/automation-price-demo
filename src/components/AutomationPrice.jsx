@@ -178,7 +178,7 @@ function AutomationTimeComponent() {
 
       const triggerParam = [100];
       const submittedAt = moment().unix();
-      const triggerFunction = 'lt';
+      const triggerFunction = 'gt';
 
       const taskExtrinsic = turingApi.tx.automationPrice.scheduleXcmpTaskThroughProxy(
         automationPriceAsset.chain,

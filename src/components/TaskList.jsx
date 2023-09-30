@@ -77,8 +77,8 @@ function TaskList() {
 
   useSubscribeTasks(updateTasks);
 
-  const onClickDelete = useCallback(async (record) => {
-    console.log('onClickDelete is called', 'record.id', record.id);
+  const onClickCancel = useCallback(async (record) => {
+    console.log('onClickCancel is called', 'record.id', record.id);
 
     const api = apis[0];
     const parachainApi = apis[1];
@@ -174,8 +174,8 @@ function TaskList() {
           <Space size="middle">
             <SignButton
               onClickCallback={() => {
-                console.log('onClickDelete is called', 'record', record);
-                return onClickDelete(record);
+                console.log('onClickCancel is called', 'record', record);
+                return onClickCancel(record);
               }}
               wallet={wallet}
               tooltip="Connect wallet to delete task"
