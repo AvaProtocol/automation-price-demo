@@ -131,8 +131,8 @@ function SwapComponent() {
   };
 
   return (
-    <Space><h3>Market Buy</h3>
-      <Button onClick={onClickSwap}>Swap</Button>
+    <>
+      <Button onClick={onClickSwap}>Market Swap</Button>
       <Modal
         open={isModalOpenSwap}
         title="Swap Asset"
@@ -153,7 +153,7 @@ function SwapComponent() {
             </Button>,
           ]}
       />
-    </Space>
+    </>
   );
 }
 

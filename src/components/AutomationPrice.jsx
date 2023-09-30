@@ -276,9 +276,7 @@ function AutomationTimeComponent() {
   }, [wallet, apis]);
 
   return (
-    <Space><h3>Swap by Price</h3>
-      <Button onClick={onClickScheduleByPrice}>Create a limit order</Button>
-    </Space>
+    <Button onClick={onClickScheduleByPrice}>Limit Order</Button>
   );
 }
 

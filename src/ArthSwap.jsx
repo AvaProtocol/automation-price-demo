@@ -148,10 +148,16 @@ function ArthSwapApp() {
               <Col span={12}>
                 <Container>
                   <Space direction="vertical">
-                    <h2>Swap Options</h2>
-                    <Swap />
-                    <AutomationTime />
-                    <AutomationPrice />
+                    <h2>Control Panel</h2>
+                    <h3>Price Update</h3>
+                    <PriceControl priceArray={priceArray} setPriceArray={setPriceArray} currentPrice={currentPrice} setCurrentPrice={setCurrentPrice} step={PRICE_INCREMENT} />
+
+                    <h3>Swap Options</h3>
+                    <Space size="middle">
+                      <Swap />
+                      <AutomationTime />
+                      <AutomationPrice />
+                    </Space>
                     {/* <Form
                       form={swapForm}
                       name="basic"
@@ -264,7 +270,6 @@ function ArthSwapApp() {
                       <Column title="Price" dataIndex="price" key="price" />
                     </Table>
                   </div>
-                  <PriceControl priceArray={priceArray} setPriceArray={setPriceArray} currentPrice={currentPrice} setCurrentPrice={setCurrentPrice} step={PRICE_INCREMENT} />
                 </Container>
               </Col>
               <Col span={24}>

@@ -276,9 +276,7 @@ function AutomationTimeComponent() {
   }, [wallet, apis]);
 
   return (
-    <Space><h3>Swap by Time</h3>
-      <Button onClick={onClickSchedule}>Schedule by Time</Button>
-    </Space>
+    <Button onClick={onClickSchedule}>Daily Cost Average</Button>
   );
 }
 
