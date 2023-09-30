@@ -27,15 +27,9 @@ function AutomationTimeComponent() {
       message.error('Wallet needs to be connected first.');
     }
 
-    console.log('wallet: ', wallet);
-    console.log('apis: ', apis);
-
     try {
       const turingApi = apis[0];
       const parachainApi = apis[1];
-
-      console.log('turingApi: ', turingApi);
-      console.log('parachainApi: ', parachainApi);
 
       const parachainParaId = (await parachainApi.query.parachainInfo.parachainId()).toNumber();
       const parachainSs58Prifx = parachainApi.consts.system.ss58Prefix.toNumber();

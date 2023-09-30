@@ -27,7 +27,6 @@ const { Column } = Table;
 const {
   Header, Footer, Sider, Content,
 } = Layout;
-// import polkadotHelper from './common/polkadotHelper';
 
 const PRICE_START = 80;
 const PRICE_INCREMENT = 20;
