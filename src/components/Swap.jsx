@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import _ from 'lodash';
 import {
   Button, Space, Modal, message,
@@ -6,6 +6,7 @@ import {
 import { WalletEthereumContextProvider, useWalletEthereum } from '../context/WalletEthereum';
 
 import { abi, erc20ABI } from '../config';
+import SignButton from './SignButton';
 
 const ROUTER_ADDRESS = '0xA17E7Ba271dC2CC12BA5ECf6D178bF818A6D76EB';
 const ARSW_ADDRESS = '0xE17D2c5c7761092f31c9Eca49db426D5f2699BF0';
@@ -132,7 +133,7 @@ function SwapComponent() {
 
   return (
     <>
-      <Button onClick={onClickSwap}>Market Swap</Button>
+      <SignButton onClickCallback={onClickSwap} wallet={wallet} tooltip="Please connect a Metamask wallet first">Market Swap</SignButton>
       <Modal
         open={isModalOpenSwap}
         title="Swap Asset"
