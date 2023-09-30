@@ -33,7 +33,7 @@ function WalletConnectPolkadotjs() {
 
   const [isModalLoading, setModalLoading] = useState(false);
   const [isModalOpen, setModalOpen] = useState(false);
-  const [radioValue, setRadioValue] = useState(1);
+  const [radioValue, setRadioValue] = useState(null);
   const [accounts, setAccounts] = useState([]);
 
   useEffect(() => {
@@ -82,8 +82,8 @@ function WalletConnectPolkadotjs() {
 
     setAccounts(allAccounts);
 
-    // Set the first wallet as selected by default
-    if (!_.isEmpty(allAccounts)) {
+    // Set the default wallet to the first account in the list
+    if (_.isNull(radioValue) && !_.isEmpty(allAccounts)) {
       setRadioValue(allAccounts[0]?.address);
     }
 

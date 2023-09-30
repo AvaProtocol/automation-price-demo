@@ -74,7 +74,7 @@ const listenEvents = async (api, section, method, conditions, timeout = undefine
   listenSystemEvents().catch(console.log);
 });
 
-const sendExtrinsic = async (api, extrinsic, address, signer, { isSudo = false } = {}) => new Promise((resolve) => {
+const sendExtrinsic = async (api, extrinsic, address, signer, { isSudo = false } = {}) => new Promise((resolve, reject) => {
   const newExtrinsic = isSudo ? api.tx.sudo.sudo(extrinsic) : extrinsic;
   newExtrinsic.signAndSend(address, { nonce: -1, signer }, ({ status, events }) => {
     console.log('status.type', status.type);
@@ -101,6 +101,9 @@ const sendExtrinsic = async (api, extrinsic, address, signer, { isSudo = false }
         resolve({ events, blockHash: status.asFinalized.toString() });
       }
     }
+  }).catch((ex) => {
+    console.log('ex', ex);
+    reject(ex);
   });
 });
 
@@ -142,6 +145,19 @@ const getDerivativeAccountV3 = (accountId, paraId, deriveAccountType = 'AccountI
   return u8aToHex(blake2AsU8a(toHash).slice(0, deriveAccountType === 'AccountKey20' ? 20 : 32));
 };
 
+function trimString(str, maxLength) {
+  if (str.length <= maxLength) {
+    return str;
+  }
+
+  const ellipsis = '...';
+  const startLength = Math.floor((maxLength - ellipsis.length) / 2);
+  const endLength = maxLength - startLength - ellipsis.length;
+
+  const trimmedStr = `${str.slice(0, startLength)}${ellipsis}${str.slice(-endLength)}`;
+  return trimmedStr;
+}
+
 export {
-  listenEvents, sendExtrinsic, getHourlyTimestamp, getDerivativeAccountV2, getDerivativeAccountV3,
+  listenEvents, sendExtrinsic, getHourlyTimestamp, getDerivativeAccountV2, getDerivativeAccountV3, trimString,
 };

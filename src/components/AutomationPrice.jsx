@@ -27,6 +27,7 @@ function AutomationTimeComponent() {
   const onClickScheduleByPrice = useCallback(async () => {
     if (_.isNull(wallet)) {
       message.error('Wallet needs to be connected first.');
+      return;
     }
 
     try {

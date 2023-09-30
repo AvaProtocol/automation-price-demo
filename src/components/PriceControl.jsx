@@ -2,10 +2,11 @@ import React, { useCallback, useEffect } from 'react';
 import _ from 'lodash';
 import moment from 'moment';
 import PropTypes from 'prop-types'; // Import PropTypes
-
 import {
-  Button, Space, message,
+  Butto as AntButton, Space, message,
 } from 'antd';
+import SignButton from './SignButton';
+
 import { useWalletPolkadot } from '../context/WalletPolkadot';
 import { MOMENT_FORMAT } from '../config';
 import { sendExtrinsic } from '../common/utils';
@@ -19,7 +20,7 @@ function PriceControl({ priceArray, setPriceArray }) {
     // Initialize the wallet provider. This code will run once after the component has rendered for the first time
     async function asyncInit() {
       try {
-        console.log('Page compoents are mounted.');
+        console.log('Initializing PriceControl component.');
       } catch (error) {
         console.error('Error fetching data:', error);
       }
@@ -38,23 +39,19 @@ function PriceControl({ priceArray, setPriceArray }) {
   const onClickInitAsset = useCallback(async () => {
     console.log('onClickInitAsset is called');
 
-    if (_.isNull(wallet)) {
-      message.error('Wallet needs to be connected first.');
-    }
-
     const api = apis[0];
     console.log('api', api);
     const extrinsic = api.tx.automationPrice.initializeAsset('shibuya', 'arthswap', 'WRSTR', 'USDT', '18', [wallet?.address]);
 
     console.log('wallet?.signer', wallet?.signer);
     console.log('extrinsic.method.toHex()', extrinsic.method.toHex());
-    await sendExtrinsic(api, extrinsic, wallet?.address, wallet?.signer);
+    return sendExtrinsic(api, extrinsic, wallet?.address, wallet?.signer);
   }, [apis, wallet]);
 
   const onClickUpdatePrice = useCallback(async () => {
     console.log('onClickUpdatePrice is called');
     const api = apis[0];
-    const price = 80;
+    const price = 90;
     const submittedAt = moment().unix();
 
     const extrinsic = api.tx.automationPrice.updateAssetPrices(['shibuya'], ['arthswap'], ['WRSTR'], ['USDT'], [price], [submittedAt], [0]);
@@ -107,9 +104,9 @@ function PriceControl({ priceArray, setPriceArray }) {
 
   return (
     <Space size="middle">
-      <Button onClick={onClickInitAsset}>Initialize Asset</Button>
-      <Button onClick={onClickUpdatePrice}>Update Price</Button>
-      <Button onClick={onClickFetchPrice}>Fetch Price</Button>
+      <SignButton tooltip="Please connect a polkadot.js wallet first" onClickCallback={onClickInitAsset} wallet={wallet}>Initialize Asset</SignButton>
+      <SignButton tooltip="Please connect a polkadot.js wallet first" onClickCallback={onClickUpdatePrice} wallet={wallet}>Update Price</SignButton>
+      <SignButton tooltip="Please connect a polkadot.js wallet first" onClickCallback={onClickFetchPrice} wallet={wallet}>Fetch Price</SignButton>
     </Space>
   );
 }

@@ -13,21 +13,6 @@ const network = {
   decimals: 18,
 };
 
-const priceColumns = [
-  {
-    title: 'Timestamp',
-    dataIndex: 'timestamp',
-  },
-  {
-    title: 'Symbols',
-    dataIndex: 'symbols',
-  },
-  {
-    title: 'Price',
-    dataIndex: 'price',
-  },
-];
-
 export {
-  network, priceColumns, abi, erc20ABI, MOMENT_FORMAT, WEIGHT_REF_TIME_PER_SECOND,
+  network, abi, erc20ABI, MOMENT_FORMAT, WEIGHT_REF_TIME_PER_SECOND,
 };

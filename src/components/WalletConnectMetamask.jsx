@@ -23,7 +23,7 @@ function WalletConnectMetamask() {
 
   const [isModalLoading, setModalLoading] = useState(false);
   const [isModalOpen, setModalOpen] = useState(false);
-  const [radioValue, setRadioValue] = useState(1);
+  const [radioValue, setRadioValue] = useState(null);
   const [accounts, setAccounts] = useState([]);
 
   useEffect(() => {
@@ -86,9 +86,9 @@ function WalletConnectMetamask() {
       console.log('requestedAccounts', requestedAccounts);
       setAccounts(requestedAccounts);
 
-      // Set the first wallet as selected by default
-      if (!_.isEmpty(requestedAccounts)) {
-        setRadioValue(requestedAccounts[0]);
+      // Set the default wallet to the first account in the list
+      if (_.isNull(radioValue) && !_.isEmpty(requestedAccounts)) {
+        setRadioValue(requestedAccounts[0]?.address);
       }
 
       setModalOpen(true);

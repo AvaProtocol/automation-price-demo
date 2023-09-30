@@ -14,12 +14,15 @@ import Container from './components/Container';
 import Swap from './components/Swap';
 import AutomationTime from './components/AutomationTime';
 import AutomationPrice from './components/AutomationPrice';
-import { network, priceColumns, MOMENT_FORMAT } from './config';
+import { network, MOMENT_FORMAT } from './config';
 import WalletConnectMetamask from './components/WalletConnectMetamask';
 import WalletConnectPolkadotjs from './components/WalletConnectPolkadotjs';
 import PriceControl from './components/PriceControl';
 import { useWalletPolkadot } from './context/WalletPolkadot';
 import useSubscribePriceRegistry from './components/useSubscribePriceRegistry';
+import TaskList from './components/TaskList';
+
+const { Column } = Table;
 
 const {
   Header, Footer, Sider, Content,
@@ -133,7 +136,7 @@ function ArthSwapApp() {
         </Header>
         <Content style={contentStyle}>
           <PageContainer style={{ paddingTop: '4rem', paddingBottom: '4rem' }}>
-            <Row justify="start" gutter={32}>
+            <Row justify="start" gutter={[32, 32]}>
               <Col span={12}>
                 <Container>
                   <Space direction="vertical">
@@ -244,11 +247,21 @@ function ArthSwapApp() {
               </Col>
               <Col span={12}>
                 <Container>
-                  <h2>ArthSwap Price Feed:</h2>
+                  <h2>ArthSwap Price Feed</h2>
                   <div>
-                    <Table columns={priceColumns} dataSource={_.reverse(formattedPriceArray)} scroll={{ y: 240 }} pagination={false} />
+                    <Table dataSource={_.reverse(formattedPriceArray)} scroll={{ y: 240 }} pagination={false}>
+                      <Column title="Timestamp" dataIndex="timestamp" key="timestamp" />
+                      <Column title="Symbols" dataIndex="symbols" key="symbols" />
+                      <Column title="Price" dataIndex="price" key="price" />
+                    </Table>
                   </div>
                   <PriceControl priceArray={priceArray} setPriceArray={setPriceArray} />
+                </Container>
+              </Col>
+              <Col span={24}>
+                <Container>
+                  <h2>Tasks</h2>
+                  <TaskList />
                 </Container>
               </Col>
             </Row>
