@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
+import { NetworkContextProvider } from './context/Network';
 import { WalletEthereumContextProvider } from './context/WalletEthereum';
 import { WalletPolkadotContextProvider } from './context/WalletPolkadot';
 
@@ -11,11 +12,13 @@ const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
     <HashRouter>
-      <WalletEthereumContextProvider>
-        <WalletPolkadotContextProvider>
-          <App />
-        </WalletPolkadotContextProvider>
-      </WalletEthereumContextProvider>
+      <NetworkContextProvider>
+        <WalletEthereumContextProvider>
+          <WalletPolkadotContextProvider>
+            <App />
+          </WalletPolkadotContextProvider>
+        </WalletEthereumContextProvider>
+      </NetworkContextProvider>
     </HashRouter>
   </React.StrictMode>,
 );

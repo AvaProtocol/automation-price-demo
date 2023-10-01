@@ -7,7 +7,7 @@ import {
 import { web3Accounts, web3Enable, web3FromAddress } from '@polkadot/extension-dapp';
 import { chains, assets } from '@oak-network/config';
 import { useWalletPolkadot } from '../context/WalletPolkadot';
-import { network } from '../config';
+import { useNetwork } from '../context/Network';
 import TuringAdapter from '../common/turingAdapter';
 import shibuyaAdapter from '../common/shibuyaAdapter';
 
@@ -36,6 +36,8 @@ function WalletConnectPolkadotjs() {
     wallet, setWallet, apis, setApis,
   } = useWalletPolkadot();
 
+  const { network } = useNetwork();
+
   const [isModalLoading, setModalLoading] = useState(false);
   const [isModalOpen, setModalOpen] = useState(false);
   const [radioValue, setRadioValue] = useState(null);
@@ -48,8 +50,8 @@ function WalletConnectPolkadotjs() {
         console.log('Initialize and set up Turing and parachain APIs');
         // const parachainApi = await ApiPromise.create({ provider: new WsProvider(network.endpoint) });
 
-        const parachainApi = await shibuyaAdapter.initialize();
-        const turingAdapter = TuringAdapter.getInstance();
+        const parachainApi = await shibuyaAdapter.initialize(network.parachain);
+        const turingAdapter = TuringAdapter.getInstance(network.oakChain);
         const turingApi = await turingAdapter.initialize();
 
         setApis([turingApi, parachainApi]);

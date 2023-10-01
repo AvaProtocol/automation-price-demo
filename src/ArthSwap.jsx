@@ -14,13 +14,13 @@ import Container from './components/Container';
 import Swap from './components/Swap';
 import AutomationTime from './components/AutomationTime';
 import AutomationPrice from './components/AutomationPrice';
-import { network, MOMENT_FORMAT } from './config';
+import { MOMENT_FORMAT } from './config';
 import WalletConnectMetamask from './components/WalletConnectMetamask';
 import WalletConnectPolkadotjs from './components/WalletConnectPolkadotjs';
 import PriceControl from './components/PriceControl';
-import { useWalletPolkadot } from './context/WalletPolkadot';
 import useSubscribePriceRegistry from './components/useSubscribePriceRegistry';
 import TaskList from './components/TaskList';
+import NetworkSelect from './components/NetworkSelect';
 
 const { Column } = Table;
 
@@ -41,8 +41,6 @@ export const waitPromises = (promises) => new Promise((resolve, reject) => {
 });
 
 function ArthSwapApp() {
-  const { apis } = useWalletPolkadot();
-
   // App states
   const [priceArray, setPriceArray] = useState([]);
   const [currentPrice, setCurrentPrice] = useState(PRICE_START);
@@ -70,6 +68,20 @@ function ArthSwapApp() {
   useEffect(() => {
     console.log('useEffect.currentPrice: ', currentPrice);
   }, [currentPrice]);
+
+  // useEffect(() => {
+  //   // Use localStorage to store the network value because we will reload the page when the network value changes.
+  //   const storedNetwork = localStorage.getItem('network');
+
+  //   console.log('useEffect.network: ', network, 'storedNetwork: ', storedNetwork);
+  //   if (network !== null && network !== storedNetwork) {
+  //     // Update the stored network value in localStorage
+  //     localStorage.setItem('network', network);
+
+  //     // If it has changed, reload the page
+  //     window.location.reload();
+  //   }
+  // }, [network]);
 
   const updateAssetPrice = async (price) => {
     const symbols = ['WRSTR', 'USDT'];
@@ -132,11 +144,14 @@ function ArthSwapApp() {
         <Header style={headerStyle}>
           <PageContainer style={{ height: '100%' }}>
             <Row>
-              <Col span={12}>
+              <Col span={10}>
                 <WalletConnectPolkadotjs />
               </Col>
-              <Col span={12}>
+              <Col span={10}>
                 <WalletConnectMetamask />
+              </Col>
+              <Col span={4}>
+                <NetworkSelect />
               </Col>
             </Row>
           </PageContainer>
