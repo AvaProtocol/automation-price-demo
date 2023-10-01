@@ -2,13 +2,13 @@ import React, { useState, useCallback, useEffect } from 'react';
 import _ from 'lodash';
 import BN from 'bn.js';
 import {
-  Button, Space, Modal, message, Radio, Row, Col,
+  Button, Space, Modal, Radio, Row, Col,
 } from 'antd';
 import { web3Accounts, web3Enable, web3FromAddress } from '@polkadot/extension-dapp';
-import { ApiPromise, WsProvider } from '@polkadot/api';
 import { useWalletPolkadot } from '../context/WalletPolkadot';
-import { network } from '../config';
-import polkadotHelper from '../common/polkadotHelper';
+import { useNetwork } from '../context/Network';
+import TuringAdapter from '../common/turingAdapter';
+import shibuyaAdapter from '../common/shibuyaAdapter';
 
 const formatToken = (amount, decimals) => {
   const decimalBN = new BN(10).pow(new BN(decimals));
@@ -31,6 +31,8 @@ function WalletConnectPolkadotjs() {
     wallet, setWallet, apis, setApis,
   } = useWalletPolkadot();
 
+  const { network } = useNetwork();
+
   const [isModalLoading, setModalLoading] = useState(false);
   const [isModalOpen, setModalOpen] = useState(false);
   const [radioValue, setRadioValue] = useState(null);
@@ -40,10 +42,10 @@ function WalletConnectPolkadotjs() {
     // Initialize the wallet provider. This code will run once after the component has rendered for the first time
     async function asyncInit() {
       try {
-        // Initialize and set up Turing and parachain APIs
-        const wsProvider = new WsProvider(network.endpoint);
-        const parachainApi = await ApiPromise.create({ provider: wsProvider });
-        const turingApi = await polkadotHelper.getPolkadotApi();
+        console.log('Initialize and set up Turing and parachain APIs');
+        const parachainApi = await shibuyaAdapter.initialize(network.parachain);
+        const turingAdapter = TuringAdapter.getInstance(network.oakChain);
+        const turingApi = await turingAdapter.initialize();
 
         setApis([turingApi, parachainApi]);
 

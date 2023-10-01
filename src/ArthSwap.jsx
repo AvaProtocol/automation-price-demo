@@ -6,28 +6,25 @@ import {
   Row, Col, Input, Button, Form, Modal, Radio, Space, message, Layout, Table,
 } from 'antd';
 
-// import { chains } from '@oak-network/config';
-// import { AstarAdapter } from '@oak-network/adapter';
 import moment from 'moment';
 import PageContainer from './components/PageContainer';
 import Container from './components/Container';
 import Swap from './components/Swap';
 import AutomationTime from './components/AutomationTime';
 import AutomationPrice from './components/AutomationPrice';
-import { network, MOMENT_FORMAT } from './config';
+import { MOMENT_FORMAT } from './config';
 import WalletConnectMetamask from './components/WalletConnectMetamask';
 import WalletConnectPolkadotjs from './components/WalletConnectPolkadotjs';
 import PriceControl from './components/PriceControl';
-import { useWalletPolkadot } from './context/WalletPolkadot';
 import useSubscribePriceRegistry from './components/useSubscribePriceRegistry';
 import TaskList from './components/TaskList';
+import NetworkSelect from './components/NetworkSelect';
 
 const { Column } = Table;
 
 const {
   Header, Footer, Sider, Content,
 } = Layout;
-// import polkadotHelper from './common/polkadotHelper';
 
 const PRICE_START = 80;
 const PRICE_INCREMENT = 20;
@@ -42,8 +39,6 @@ export const waitPromises = (promises) => new Promise((resolve, reject) => {
 });
 
 function ArthSwapApp() {
-  const { apis } = useWalletPolkadot();
-
   // App states
   const [priceArray, setPriceArray] = useState([]);
   const [currentPrice, setCurrentPrice] = useState(PRICE_START);
@@ -133,11 +128,14 @@ function ArthSwapApp() {
         <Header style={headerStyle}>
           <PageContainer style={{ height: '100%' }}>
             <Row>
-              <Col span={12}>
+              <Col span={10}>
                 <WalletConnectPolkadotjs />
               </Col>
-              <Col span={12}>
+              <Col span={10}>
                 <WalletConnectMetamask />
+              </Col>
+              <Col span={4}>
+                <NetworkSelect />
               </Col>
             </Row>
           </PageContainer>
