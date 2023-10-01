@@ -146,7 +146,7 @@ function TaskList() {
   }, [apis, wallet]);
 
   return (
-    <Table dataSource={displayArray} scroll={{ y: 240 }} pagination={false} size="middle">
+    <Table dataSource={displayArray} pagination={false} size="middle">
       <Column title="Task Id" dataIndex="id" key="id" />
       <Column title="Owner" dataIndex="owner" key="owner" />
       <Column title="Destination" dataIndex="destination" key="destination" />

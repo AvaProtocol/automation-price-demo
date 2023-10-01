@@ -3,7 +3,7 @@ import React, {
 } from 'react';
 import _ from 'lodash';
 import {
-  Row, Col, Input, Button, Form, Modal, Radio, Space, message, Layout, Table,
+  Row, Col, Space, message, Layout, Table, ConfigProvider, theme, Spin,
 } from 'antd';
 
 import moment from 'moment';
@@ -42,6 +42,7 @@ function ArthSwapApp() {
   // App states
   const [priceArray, setPriceArray] = useState([]);
   const [currentPrice, setCurrentPrice] = useState(PRICE_START);
+  const { token } = theme.useToken();
 
   useEffect(() => {
     // Initialize the wallet provider. This code will run once after the component has rendered for the first time
@@ -99,7 +100,6 @@ function ArthSwapApp() {
     top: 0,
     zIndex: 1,
     width: '100%',
-    backgroundColor: '#fff',
     lineHeight: '2rem',
     minHeight: '6rem',
   };
@@ -123,39 +123,83 @@ function ArthSwapApp() {
    * Main functions
    */
   return (
-    <Space direction="vertical" style={{ width: '100%', paddingTop: '1rem', paddingBottom: '1rem' }} size={[0, 48]}>
-      <Layout>
-        <Header style={headerStyle}>
-          <PageContainer style={{ height: '100%' }}>
-            <Row>
-              <Col span={10}>
-                <WalletConnectPolkadotjs />
-              </Col>
-              <Col span={10}>
-                <WalletConnectMetamask />
-              </Col>
-              <Col span={4}>
-                <NetworkSelect />
-              </Col>
-            </Row>
-          </PageContainer>
-        </Header>
-        <Content style={contentStyle}>
-          <PageContainer style={{ paddingTop: '4rem', paddingBottom: '4rem' }}>
-            <Row justify="start" gutter={[32, 32]}>
-              <Col span={12}>
-                <Container>
-                  <Space direction="vertical">
-                    <h2>Control Panel</h2>
-                    <h3>Price Update</h3>
-                    <PriceControl priceArray={priceArray} setPriceArray={setPriceArray} currentPrice={currentPrice} setCurrentPrice={setCurrentPrice} step={PRICE_INCREMENT} />
-
-                    <h3>Swap Options</h3>
-                    <Space size="middle">
-                      <Swap />
-                      <AutomationTime />
-                      <AutomationPrice />
-                    </Space>
+    <ConfigProvider
+      theme={{
+        token: {
+          // borderRadius: 2,
+        },
+        components: {
+          Layout: {
+            bodyBg: 'rgba(245, 245, 245, 0.5)',
+            headerBg: 'rgba(255, 255, 255, 0.6)',
+          },
+        },
+      }}
+    >
+      <div style={{
+        minHeight: '100vh',
+        backgroundImage: "url('https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/V-_oS6r-i7wAAAAAAAAAAAAAFl94AQBr')",
+        backgroundSize: '100% auto',
+      }}
+      >
+        <Layout>
+          <Header style={headerStyle}>
+            <PageContainer style={{ height: '100%', paddingTop: 14 }}>
+              <Row align="middle" justify="start">
+                <Col span={20}>
+                  <Space align="start">
+                    <WalletConnectPolkadotjs />
+                    <WalletConnectMetamask />
+                  </Space>
+                </Col>
+                <Col span={4} style={{ textAlign: 'right' }}>
+                  <NetworkSelect />
+                </Col>
+              </Row>
+            </PageContainer>
+          </Header>
+          <Content style={contentStyle}>
+            <PageContainer style={{ paddingTop: 32, paddingBottom: 32 }}>
+              <Row justify="start" gutter={[32, 32]}>
+                <Col span={12}>
+                  <Container>
+                    <div
+                      style={{
+                        fontSize: '20px',
+                        color: token.colorTextHeading,
+                        paddingBottom: 18,
+                      }}
+                    >
+                      Control Panel
+                    </div>
+                    <div style={{ paddingLeft: 18 }}>
+                      <div style={{ paddingBottom: 18 }}>
+                        <div
+                          style={{
+                            fontSize: '16px',
+                            color: token.colorText,
+                            paddingBottom: 8,
+                          }}
+                        >
+                          Price Update
+                        </div>
+                        <PriceControl priceArray={priceArray} setPriceArray={setPriceArray} currentPrice={currentPrice} setCurrentPrice={setCurrentPrice} step={PRICE_INCREMENT} />
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '16px',
+                          color: token.colorText,
+                          paddingBottom: 8,
+                        }}
+                      >
+                        Swap Options
+                      </div>
+                      <Space size="middle">
+                        <Swap />
+                        <AutomationTime />
+                        <AutomationPrice />
+                      </Space>
+                    </div>
                     {/* <Form
                       form={swapForm}
                       name="basic"
@@ -254,34 +298,61 @@ function ArthSwapApp() {
                         </Modal>
                       </div>
                     </Form> */}
-                  </Space>
-                </Container>
-              </Col>
-              <Col span={12}>
-                <Container>
-                  <h2>ArthSwap Price Feed</h2>
-                  <span>Current Price: {currentPrice}</span>
-                  <div>
-                    <Table dataSource={_.reverse(formattedPriceArray)} scroll={{ y: 240 }} pagination={false}>
-                      <Column title="Timestamp" dataIndex="timestamp" key="timestamp" />
-                      <Column title="Symbols" dataIndex="symbols" key="symbols" />
-                      <Column title="Price" dataIndex="price" key="price" />
-                    </Table>
-                  </div>
-                </Container>
-              </Col>
-              <Col span={24}>
-                <Container>
-                  <h2>Tasks</h2>
-                  <TaskList />
-                </Container>
-              </Col>
-            </Row>
-          </PageContainer>
-        </Content>
-      </Layout>
-
-    </Space>
+                  </Container>
+                </Col>
+                <Col span={12}>
+                  <Container>
+                    <div
+                      style={{
+                        fontSize: '20px',
+                        color: token.colorTextHeading,
+                        paddingBottom: 18,
+                      }}
+                    >
+                      ArthSwap Price Feed
+                    </div>
+                    <div style={{ paddingLeft: 18 }}>
+                      <Space style={{ paddingBottom: 18 }}>
+                        <div
+                          style={{
+                            fontSize: '16px',
+                            color: token.colorText,
+                          }}
+                        >
+                          Current Price: {currentPrice}
+                        </div>
+                        <Spin spinning={false} />
+                      </Space>
+                      <div>
+                        <Table dataSource={_.reverse(formattedPriceArray)} pagination={false}>
+                          <Column title="Timestamp" dataIndex="timestamp" key="timestamp" />
+                          <Column title="Symbols" dataIndex="symbols" key="symbols" />
+                          <Column title="Price" dataIndex="price" key="price" />
+                        </Table>
+                      </div>
+                    </div>
+                  </Container>
+                </Col>
+                <Col span={24}>
+                  <Container>
+                    <div
+                      style={{
+                        fontSize: '20px',
+                        color: token.colorTextHeading,
+                        paddingBottom: 18,
+                      }}
+                    >
+                      Task List
+                    </div>
+                    <TaskList />
+                  </Container>
+                </Col>
+              </Row>
+            </PageContainer>
+          </Content>
+        </Layout>
+      </div>
+    </ConfigProvider>
   );
 }
 

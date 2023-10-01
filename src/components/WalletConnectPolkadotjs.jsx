@@ -49,6 +49,8 @@ function WalletConnectPolkadotjs() {
 
         setApis([turingApi, parachainApi]);
 
+        turingAdapter.subscribeTask();
+
         // const result = await turingApi.query.automationPrice.priceRegistry.entries('shibuya', 'arthswap');
         // console.log('price: ', result[0][1].unwrap().amount.toString());
 
@@ -127,16 +129,20 @@ function WalletConnectPolkadotjs() {
   return (
     <>
       { _.isNil(wallet)
-        ? (<Button onClick={onClickConnect}>Connect Polkadot.js</Button>)
+        ? (<Button type="primary" onClick={onClickConnect}>Connect Polkadot.js</Button>)
         : (
           <>
-            <Row gutter={32}>
-              <Col>Wallet: {wallet.address}</Col>
-              <Col>Balance: { formatTokenBalanceString(wallet.balance, network.decimals) } {network.symbol}</Col>
+            <Row>
+              <Space>
+                <div>Wallet: {wallet.address}</div>
+                <div>Balance: { formatTokenBalanceString(wallet.balance, network.decimals) } {network.symbol}</div>
+              </Space>
             </Row>
             <Row>
-              <Button onClick={onClickConnect}>Switch Wallet</Button>
-              <Button onClick={onClickDisconnect}>Disconnect</Button>
+              <Space>
+                <Button onClick={onClickConnect}>Switch Wallet</Button>
+                <Button onClick={onClickDisconnect}>Disconnect</Button>
+              </Space>
             </Row>
           </>
         )}

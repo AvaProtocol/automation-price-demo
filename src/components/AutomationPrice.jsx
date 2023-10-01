@@ -277,7 +277,7 @@ function AutomationTimeComponent() {
   }, [wallet, apis]);
 
   return (
-    <SignButton tooltip="Please connect a polkadot.js wallet first" onClickCallback={onClickScheduleByPrice} wallet={wallet}>Limit Order</SignButton>
+    <SignButton type="primary" tooltip="Please connect a polkadot.js wallet first" onClickCallback={onClickScheduleByPrice} wallet={wallet}>Limit Order</SignButton>
 
   );
 }

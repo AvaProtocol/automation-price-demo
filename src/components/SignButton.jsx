@@ -6,7 +6,7 @@ import {
 } from 'antd';
 
 function SignButton({
-  wallet, onClickCallback, tooltip, children,
+  wallet, onClickCallback, tooltip, children, type,
 }) {
   const onClick = async () => {
     if (_.isNull(wallet)) {
@@ -21,10 +21,10 @@ function SignButton({
   };
 
   return (wallet
-    ? <AntButton key="submit" onClick={onClick}>{children}</AntButton>
+    ? <AntButton type={type} key="submit" onClick={onClick}>{children}</AntButton>
     : (
       <Tooltip title={tooltip}>
-        <AntButton key="submit" disabled>{children}</AntButton>
+        <AntButton type={type} key="submit" disabled>{children}</AntButton>
       </Tooltip>
     )
   );
@@ -35,10 +35,12 @@ SignButton.propTypes = {
   onClickCallback: PropTypes.func.isRequired,
   tooltip: PropTypes.string.isRequired,
   children: PropTypes.string.isRequired,
+  type: PropTypes.string,
 };
 
 SignButton.defaultProps = {
   wallet: null,
+  type: 'default',
 };
 
 export default SignButton;
