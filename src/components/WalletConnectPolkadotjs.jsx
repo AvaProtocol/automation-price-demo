@@ -1,19 +1,14 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import _, { chain } from 'lodash';
+import _ from 'lodash';
 import BN from 'bn.js';
 import {
-  Button, Space, Modal, message, Radio, Row, Col,
+  Button, Space, Modal, Radio, Row, Col,
 } from 'antd';
 import { web3Accounts, web3Enable, web3FromAddress } from '@polkadot/extension-dapp';
-import { chains, assets } from '@oak-network/config';
 import { useWalletPolkadot } from '../context/WalletPolkadot';
 import { useNetwork } from '../context/Network';
 import TuringAdapter from '../common/turingAdapter';
 import shibuyaAdapter from '../common/shibuyaAdapter';
-
-const { turingLocal } = chains;
-
-console.log('turingLocal ', turingLocal);
 
 const formatToken = (amount, decimals) => {
   const decimalBN = new BN(10).pow(new BN(decimals));
@@ -48,8 +43,6 @@ function WalletConnectPolkadotjs() {
     async function asyncInit() {
       try {
         console.log('Initialize and set up Turing and parachain APIs');
-        // const parachainApi = await ApiPromise.create({ provider: new WsProvider(network.endpoint) });
-
         const parachainApi = await shibuyaAdapter.initialize(network.parachain);
         const turingAdapter = TuringAdapter.getInstance(network.oakChain);
         const turingApi = await turingAdapter.initialize();

@@ -1,4 +1,3 @@
-// MyContext.js
 import React, {
   createContext, useContext, useState, useMemo,
 } from 'react';
@@ -39,7 +38,6 @@ function NetworkContextProvider({ children }) {
   const [network, setNetwork] = useState(networks[0]);
 
   const updateNetwork = (newValue) => {
-    console.log('updateNetwork: ', newValue);
     setNetwork(newValue);
   };
 

@@ -64,7 +64,6 @@ function NetworkSelect() {
 }
 
 NetworkSelect.propTypes = {
-//   onSelect: PropTyspes.func.isRequired,
 };
 
 NetworkSelect.defaultProps = {
