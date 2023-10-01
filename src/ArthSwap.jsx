@@ -6,8 +6,6 @@ import {
   Row, Col, Input, Button, Form, Modal, Radio, Space, message, Layout, Table,
 } from 'antd';
 
-// import { chains } from '@oak-network/config';
-// import { AstarAdapter } from '@oak-network/adapter';
 import moment from 'moment';
 import PageContainer from './components/PageContainer';
 import Container from './components/Container';
@@ -68,20 +66,6 @@ function ArthSwapApp() {
   useEffect(() => {
     console.log('useEffect.currentPrice: ', currentPrice);
   }, [currentPrice]);
-
-  // useEffect(() => {
-  //   // Use localStorage to store the network value because we will reload the page when the network value changes.
-  //   const storedNetwork = localStorage.getItem('network');
-
-  //   console.log('useEffect.network: ', network, 'storedNetwork: ', storedNetwork);
-  //   if (network !== null && network !== storedNetwork) {
-  //     // Update the stored network value in localStorage
-  //     localStorage.setItem('network', network);
-
-  //     // If it has changed, reload the page
-  //     window.location.reload();
-  //   }
-  // }, [network]);
 
   const updateAssetPrice = async (price) => {
     const symbols = ['WRSTR', 'USDT'];
