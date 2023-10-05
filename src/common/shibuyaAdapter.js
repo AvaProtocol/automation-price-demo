@@ -12,8 +12,6 @@ class ShibuyaAdapter {
   }
 
   initialize = async () => {
-    console.log('ShibuyaAdapter.initialize is called.', this.api);
-
     // Make sure we don't call ApiPromise.create() multiple times. This is important because React components can be re-rendered multiple times
     // in a very short period of time, during which ApiPromise.create() can be called multiple times.
     if (this.isInitializing) {
@@ -24,7 +22,7 @@ class ShibuyaAdapter {
       this.isInitializing = true;
       this.api = await ApiPromise.create({ provider: new WsProvider(this.config.endpoint) });
       this.isInitializing = false;
-      console.log('ShibuyaAdapter.initialize has completed ApiPromise.create.', this.api);
+      // console.log('ShibuyaAdapter.initialize has completed ApiPromise.create.', this.api);
     }
 
     return this.api;

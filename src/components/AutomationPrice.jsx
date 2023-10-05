@@ -19,7 +19,7 @@ import { WEIGHT_REF_TIME_PER_SECOND } from '../config';
 
 function AutomationTimeComponent() {
   const {
-    wallet, apis,
+    wallet, adapters,
   } = useWalletPolkadot();
 
   /**
@@ -32,8 +32,8 @@ function AutomationTimeComponent() {
     }
 
     try {
-      const turingApi = apis[0];
-      const parachainApi = apis[1];
+      const turingApi = adapters[0]?.api;
+      const parachainApi = adapters[1]?.api;
 
       console.log('turingApi: ', turingApi);
       console.log('parachainApi: ', parachainApi);
@@ -274,7 +274,7 @@ function AutomationTimeComponent() {
     } catch (error) {
       console.log(error);
     }
-  }, [wallet, apis]);
+  }, [wallet, adapters]);
 
   return (
     <SignButton type="primary" tooltip="Please connect a polkadot.js wallet first" onClickCallback={onClickScheduleByPrice} wallet={wallet}>Limit Order</SignButton>

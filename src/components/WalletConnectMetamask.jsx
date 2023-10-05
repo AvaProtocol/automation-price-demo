@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import _ from 'lodash';
 import {
-  Button, Space, Modal, message, Radio,
+  Button, Space, Modal, message, Radio, Row,
 } from 'antd';
 import { useWalletEthereum } from '../context/WalletEthereum';
 import { network } from '../config';
@@ -67,8 +67,8 @@ function WalletConnectMetamask() {
   /**
    * Modal Swap functions
    */
-  const onClickDisconnectWallet = useCallback(async () => {
-    console.log('onClickDisconnectWallet call back is called.');
+  const onClickDisconnect = useCallback(async () => {
+    console.log('onClickDisconnect call back is called.');
 
     setAccounts([]);
     setWallet(null);
@@ -77,8 +77,8 @@ function WalletConnectMetamask() {
   /**
    * Modal Wallet Connect functions
    */
-  const onClickConnectWallet = useCallback(async () => {
-    console.log('onClickConnectWallet is called, provider: ', provider);
+  const onClickConnect = useCallback(async () => {
+    console.log('onClickConnect is called, provider: ', provider);
 
     try {
       // Request permission to connect users accounts from Metamask
@@ -137,14 +137,22 @@ function WalletConnectMetamask() {
   return (
     <>
       { _.isNil(wallet)
-        ? (<Button onClick={onClickConnectWallet}>Connect Metamask</Button>)
+        ? (<Button onClick={onClickConnect}>Connect Metamask</Button>)
         : (
-          <div><div>Wallet:</div><div>{wallet?.address}</div>
-            <div>Balance:</div><div>{wallet?.balance} {network.symbol}</div>
-            <div>Nonce:</div><div>{wallet?.nonce}</div>
-            <Button onClick={onClickConnectWallet}>Switch Wallet</Button>
-            <Button onClick={onClickDisconnectWallet}>Disconnect Metamask</Button>
-          </div>
+          <>
+            <Row>
+              <Space>
+                <div>Wallet: {wallet?.address}</div>
+                <div>Balance: { _.floor(wallet?.balance, 4) } {network?.symbol}</div>
+              </Space>
+            </Row>
+            <Row>
+              <Space>
+                <Button onClick={onClickConnect}>Switch Wallet</Button>
+                <Button onClick={onClickDisconnect}>Disconnect</Button>
+              </Space>
+            </Row>
+          </>
         )}
       <Modal
         open={isModalOpen}
