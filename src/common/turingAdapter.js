@@ -10,7 +10,6 @@ class TuringAdapter {
     this.api = undefined;
     this.isInitializing = false;
     this.subscriptions = [];
-    this.unsub = undefined;
   }
 
   initialize = async () => {
@@ -70,7 +69,7 @@ class TuringAdapter {
           cb(foundTaskEvents);
         });
 
-        // this.subscriptions.push(unsub);
+        this.subscriptions.push(unsub);
       } catch (ex) {
         console.log('subscribeTask exception', ex);
       }

@@ -15,7 +15,7 @@ import { sendExtrinsic, trimString } from '../common/utils';
 
 const { Column } = Table;
 
-function TaskList(/* { tasks, setTasks } */) {
+function TaskList() {
   const {
     wallet, adapters,
   } = useWalletPolkadot();
@@ -89,6 +89,7 @@ function TaskList(/* { tasks, setTasks } */) {
         setDisplayArrayByTaskMap(taskMap);
       });
 
+      // Subscribe to automationPrice.tasks changes based on system events
       turingAdapter?.subscribeTasks((updatedTasks) => {
         if (!_.isEmpty(updatedTasks)) {
           console.log('subscribeTasks.updatedTasks', updatedTasks);
@@ -232,8 +233,6 @@ function TaskList(/* { tasks, setTasks } */) {
 }
 
 TaskList.propTypes = {
-  // tasks: PropTypes.arrayOf(PropTypes.object).isRequired,
-  // setTasks: PropTypes.func.isRequired,
 };
 
 export default TaskList;

@@ -350,7 +350,7 @@ function ArthSwapApp() {
                     >
                       Task List
                     </div>
-                    <TaskList tasks={tasks} setTask={setTasks} />
+                    <TaskList />
                   </Container>
                 </Col>
               </Row>

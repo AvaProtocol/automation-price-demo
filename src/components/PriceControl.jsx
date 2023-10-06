@@ -25,21 +25,6 @@ function PriceControl({
   const [isSuccess, setIsSuccess] = useState(false);
   const [inputNumber, setInputNumber] = useState(DEFAULT_INPUT_NUMBER);
 
-  // useEffect(() => {
-  //   // Initialize the wallet provider. This code will run once after the component has rendered for the first time
-  //   async function asyncInit() {
-  //   }
-
-  //   asyncInit(); // Call the async function inside useEffect
-
-  //   // You can perform any cleanup or additional actions here if needed
-  //   // For example, removing event listeners or making API requests
-  //   // Be sure to return a cleanup function if necessary
-  //   return () => {
-  //     // Cleanup code here (if needed)
-  //   };
-  // }, []);
-
   useEffect(() => {
     if (_.isEmpty(adapters) || _.isUndefined(adapters[0])) {
       return;
