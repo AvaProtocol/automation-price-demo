@@ -25,35 +25,47 @@ function PriceControl({
   const [isSuccess, setIsSuccess] = useState(false);
   const [inputNumber, setInputNumber] = useState(DEFAULT_INPUT_NUMBER);
 
+  const fetchPriceCallback = useCallback((priceObj) => {
+    if (_.isNull(currentPrice)) {
+      const nowMoment = moment();
+      const newPriceObj = _.extend(priceObj, { timestamp: nowMoment });
+      setCurrentPrice(newPriceObj);
+    }
+  }, [currentPrice, setCurrentPrice]);
+
+  const subPriceCallback = useCallback((updatedPrices) => {
+    console.log('subscribePrice.updatedPrices', updatedPrices);
+
+    const newPriceObject = updatedPrices[0]?.data;
+
+    if (!_.isUndefined(newPriceObject)) {
+      const newCurrentPrice = _.extend(newPriceObject, { timestamp: moment() });
+      setCurrentPrice(newCurrentPrice);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentPrice) {
+      setPriceArray((existingPriceArray) => [...existingPriceArray, currentPrice]);
+    }
+  }, [currentPrice]);
+
   useEffect(() => {
     if (_.isEmpty(adapters) || _.isUndefined(adapters[0])) {
       return;
     }
 
     try {
-      console.log('Subscribe to price updates since Turing adapter is set.', adapters[0]);
       const turingAdapter = adapters[0];
 
-      turingAdapter?.subscribePrice((values) => {
-        if (!_.isEmpty(values) && values[0]?.amount !== currentPrice) {
-          console.log('Updating currentPrice to', values[0]?.amount, `since the old value ${currentPrice} is different ...`);
-          const newPrice = _.toNumber(values[0]?.amount);
-          setCurrentPrice(newPrice);
+      // One-time fetch price function to intialize currentPrice and priceArray
+      turingAdapter?.fetchPrice(fetchPriceCallback);
 
-          const newPriceArray = priceArray || [];
-          newPriceArray.push({
-            timestamp: moment(),
-            symbols: ['WRSTR', 'USDT'],
-            price: newPrice,
-          });
-
-          setPriceArray(newPriceArray);
-        }
-      });
+      turingAdapter?.subscribePrice(subPriceCallback);
     } catch (error) {
       console.error('Error fetching data:', error);
     }
-  }, [adapters, currentPrice, priceArray, setCurrentPrice, setPriceArray]);
+  }, [adapters]);
 
   const handleCancel = () => {
     setIsModalOpen(false);
@@ -68,7 +80,7 @@ function PriceControl({
     const extrinsicInitAsset = api.tx.automationPrice.initializeAsset('shibuya', 'arthswap', 'WRSTR', 'USDT', '18', [wallet?.address]);
     // sendExtrinsic(api, extrinsic, wallet?.address, wallet?.signer);
     const submittedAt = moment().unix();
-    const extrinsicUpdatePrice = api.tx.automationPrice.updateAssetPrices(['shibuya'], ['arthswap'], ['WRSTR'], ['USDT'], [currentPrice], [submittedAt], [0]);
+    const extrinsicUpdatePrice = api.tx.automationPrice.updateAssetPrices(['shibuya'], ['arthswap'], ['WRSTR'], ['USDT'], [currentPrice?.price], [submittedAt], [0]);
 
     const batchExtrinsics = [extrinsicInitAsset, extrinsicUpdatePrice];
     await api.tx.utility.batch(batchExtrinsics).signAndSend(wallet?.address, { nonce: -1, signer: wallet?.signer }, ({ events = [], status }) => {
@@ -127,13 +139,12 @@ function PriceControl({
     console.log('handleOk. setting price to inputNumber', inputNumber);
     const result = await updatePrice(inputNumber, adapters[0]?.api, wallet);
 
-    console.log('update.result', result);
+    // console.log('update.result', result);
     setIsSuccess(true);
     setIsLoading(false);
   };
 
   const onChangeInputNumber = (value) => {
-    console.log('onChangeInputNumber.value', value);
     setInputNumber(_.toNumber(value));
   };
 
@@ -151,9 +162,10 @@ function PriceControl({
         okButtonProps={{ disabled: isModalOpen && isSuccess }}
         cancelText="Close"
         onCancel={handleCancel}
+        maskClosable={false}
       >
         <Space size="middle" direction="vertical">
-          <div>Current price: {currentPrice || ''}</div>
+          <div>Current price: {currentPrice?.price || ''}</div>
           <div>Set a new value to the price of the pair</div>
           <InputNumber min={60} max={140} step={20} defaultValue={inputNumber} onChange={onChangeInputNumber} />
           {isSuccess && <Result iconFontSize={14} titleFontSize={14} status="success" title="The price update has been simulated on Turing." />}
@@ -166,7 +178,7 @@ function PriceControl({
 PriceControl.propTypes = {
   priceArray: PropTypes.arrayOf(PropTypes.shape).isRequired,
   setPriceArray: PropTypes.func.isRequired,
-  currentPrice: PropTypes.number,
+  currentPrice: PropTypes.objectOf(PropTypes.shape),
   setCurrentPrice: PropTypes.func.isRequired,
   step: PropTypes.number.isRequired,
 };

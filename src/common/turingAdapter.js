@@ -9,7 +9,8 @@ class TuringAdapter {
     this.config = config;
     this.api = undefined;
     this.isInitializing = false;
-    this.subscriptions = [];
+    this.subTasks = undefined;
+    this.subPrice = undefined;
   }
 
   initialize = async () => {
@@ -52,13 +53,12 @@ class TuringAdapter {
    * @param {function} cb callback function from the caller
    */
   subscribeTasks = async (cb) => {
-    if (this.api && _.isUndefined(this.subscriptionTasks)) {
+    if (this.api && _.isUndefined(this.subTasks)) {
       try {
         const unsub = await this.api.query.system.events(async (events) => {
           const foundTaskEvents = _.filter(_.map(events, ({ phase, event: { data, method, section } }) => {
-            // console.log(`${phase.toString()} : ${section}.${method} ${data.toString()}`);
-
-            if (section === 'automationPrice') { // TaskScheduled, TaskExecuted, TaskCancelled events contain the same data for now
+            if (section === 'automationPrice' && phase.toHuman()?.ApplyExtrinsic === '2') { // TaskScheduled, TaskExecuted, TaskCancelled events contain the same data for now
+              console.log('Found task event', phase.toHuman(), `${section}.${method} ${data.toString()}`);
               const eventData = data.toHuman(); // {who: '6757gffjjMc7E4sZJtkfvq8fmMzH2NPRrEL3f3tqpr2PzXYq', taskId: '1775-0-1'}
               return { section, method, data: { ownerId: eventData.who, taskId: eventData.taskId } };
             }
@@ -69,9 +69,27 @@ class TuringAdapter {
           cb(foundTaskEvents);
         });
 
-        this.subscriptions.push(unsub);
+        this.subTasks = unsub;
       } catch (ex) {
         console.log('subscribeTask exception', ex);
+      }
+    }
+  };
+
+  /**
+   * Get all entries in the automationPrice.tasks storage and run callback with retrieved tasks
+   * @param {*} cb
+   */
+  fetchPrice = async (cb) => {
+    if (this.api) {
+      try {
+        const values = await this.api.query.automationPrice.priceRegistry.entries('shibuya', 'arthswap');
+        // console.log('values[0][1].toHuman()', values[0][1].toHuman());
+        const keyObj = values[0][0].toHuman();
+        const priceObj = values[0][1].toHuman();
+        cb({ price: priceObj.amount, symbols: keyObj[2] });
+      } catch (ex) {
+        console.log('subscribePrice exception', ex);
       }
     }
   };
@@ -81,27 +99,34 @@ class TuringAdapter {
    * @param {function} cb callback function from the caller
    */
   subscribePrice = async (cb) => {
-    if (this.api && _.isUndefined(this.subscriptionPrice)) {
+    if (this.api && _.isUndefined(this.subPrice)) {
       try {
-        const storageKeys = await this.api.query.automationPrice.priceRegistry.keys('shibuya', 'arthswap');
-        const unsub = await this.api.rpc.state.subscribeStorage(storageKeys, (results) => {
-          // console.log('subscribePrice.api.rpc.state.subscribeStorage.result', result);
+        const unsub = await this.api.query.system.events(async (events) => {
+          const foundPriceEvents = _.filter(_.map(events, ({ phase, event: { data, method, section } }) => {
+            if (section === 'automationPrice' && method === 'AssetUpdated' && phase.toHuman()?.ApplyExtrinsic === '2') {
+              console.log('Found price event', phase.toHuman(), `${section}.${method} ${data.toString()}`);
 
-          cb(_.map(results, (item) => item.toHuman()));
+              const eventData = data.toHuman(); // {who: '66RxduFvFDjfQjYJRnX4ywgYm6w2SAiHqtqGKgY1qdfYCj3g', chain: 'shibuya', exchange: 'arthswap', asset1: 'WRSTR', asset2: 'USDT', price: '80' }
+              return { section, method, data: { price: eventData.price, symbols: [eventData.asset1, eventData.asset2] } };
+            }
+
+            return undefined;
+          }), (event) => !_.isUndefined(event));
+
+          cb(foundPriceEvents);
         });
 
-        this.subscriptions.push(unsub);
+        this.subPrice = unsub;
       } catch (ex) {
-        console.log('subscribePrice exception', ex);
+        console.log('subscribeTask exception', ex);
       }
     }
   };
 
   disconnect = async () => {
     // Call all the unsub functions
-    _.each(this.subscriptions, (unsub) => {
-      unsub();
-    });
+    this.subTasks?.();
+    this.subPrice?.();
 
     // Disconnect the api
     this.api.disconnect();

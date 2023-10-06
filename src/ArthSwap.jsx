@@ -40,8 +40,8 @@ export const waitPromises = (promises) => new Promise((resolve, reject) => {
 function ArthSwapApp() {
   // App states
   const [priceArray, setPriceArray] = useState([]);
+  const [priceMap, setPriceMap] = useState(new Map()); // TODO: use map to control price list
   const [currentPrice, setCurrentPrice] = useState(null);
-  const [tasks, setTasks] = useState([]);
   const { token } = theme.useToken();
 
   useEffect(() => {
@@ -59,31 +59,6 @@ function ArthSwapApp() {
       // Cleanup code here (if needed)
     };
   }, []); // The empty dependency array [] ensures that this effect runs only once, similar to componentDidMount
-
-  useEffect(() => {
-    console.log('useEffect.priceArray: ', priceArray);
-  }, [priceArray]);
-
-  useEffect(() => {
-    console.log('useEffect.currentPrice: ', currentPrice);
-  }, [currentPrice]);
-
-  const updateAssetPrice = async (price) => {
-    const symbols = ['WRSTR', 'USDT'];
-    // Do not insert the same price.
-    if (price.eq(priceArray[priceArray.length - 1]?.price)) {
-      return;
-    }
-    const retrievedTimestamp = moment();
-    const priceItem = {
-      timestamp: retrievedTimestamp,
-      symbols,
-      price,
-    };
-    const newPriceArray = [...priceArray];
-    newPriceArray.push(priceItem);
-    setPriceArray(newPriceArray);
-  };
 
   const onFinish = (values) => {
     console.log('values: ', values);
@@ -107,15 +82,15 @@ function ArthSwapApp() {
     lineHeight: '2rem',
   };
 
-  const formattedPriceArray = _.map(priceArray, (item, index) => {
-    const formattedTimestamp = item.timestamp.format(MOMENT_FORMAT);
+  const formattedPriceArray = _.reverse(_.map(priceArray, (item, index) => {
+    const formattedTimestamp = item?.timestamp?.format(MOMENT_FORMAT);
     return {
       key: `${index}-${formattedTimestamp}`,
       timestamp: formattedTimestamp,
-      symbols: _.join(item.symbols, '-'),
-      price: item.price.toString(),
+      symbols: _.join(item?.symbols, '-'),
+      price: item?.price.toString(),
     };
-  });
+  }));
 
   /**
    * Main functions
@@ -325,12 +300,12 @@ function ArthSwapApp() {
                             color: token.colorText,
                           }}
                         >
-                          Current Price: {_.isNull(currentPrice) ? '' : currentPrice}
+                          Current Price: {_.isUndefined(currentPrice?.price) ? '' : currentPrice?.price}
                         </div>
                         <Spin spinning={false} />
                       </Space>
                       <div>
-                        <Table dataSource={_.reverse(formattedPriceArray)} pagination={false}>
+                        <Table dataSource={formattedPriceArray} pagination={false}>
                           <Column title="Timestamp" dataIndex="timestamp" key="timestamp" />
                           <Column title="Symbols" dataIndex="symbols" key="symbols" />
                           <Column title="Price" dataIndex="price" key="price" />
