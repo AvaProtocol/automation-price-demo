@@ -198,6 +198,7 @@ function AutomationTimeComponent() {
         wallet?.address,
       );
 
+      console.log('Task extrinsic encoded call:', u8aToHex(taskExtrinsic.method.toU8a()));
       const encodedCallWeightRaw = (await taskExtrinsic.paymentInfo(wallet?.address)).weight;
       const encodedCallWeight = { refTime: encodedCallWeightRaw.refTime.unwrap(), proofSize: encodedCallWeightRaw.proofSize.unwrap() };
       const instructionCount = 4;

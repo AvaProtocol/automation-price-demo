@@ -92,7 +92,7 @@ function TaskList() {
       // Subscribe to automationPrice.tasks changes based on system events
       turingAdapter?.subscribeTasks((updatedTasks) => {
         if (!_.isEmpty(updatedTasks)) {
-          console.log('subscribeTasks.updatedTasks', updatedTasks);
+          // console.log('subscribeTasks.updatedTasks', updatedTasks);
 
           // Handle TaskCancelled, TaskExecuted, and TaskScheduled events,
           _.each(updatedTasks, (updatedTask) => {
