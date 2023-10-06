@@ -2,14 +2,7 @@ import _ from 'lodash';
 import '@oak-network/api-augment';
 
 import { rpc, types, runtime } from '@oak-network/types';
-import { types as polkadotTypes, StorageKey, createType } from '@polkadot/types';
-import { xxhashAsHex } from '@polkadot/util-crypto';
 import { ApiPromise, WsProvider } from '@polkadot/api';
-import { chains, assets } from '@oak-network/config';
-
-const { stringToU8a } = require('@polkadot/util');
-
-const { turingLocal } = chains;
 
 class TuringAdapter {
   constructor(config) {
@@ -40,61 +33,41 @@ class TuringAdapter {
     return this.api;
   };
 
+  /**
+   * Get all entries in the automationPrice.tasks storage and run callback with retrieved tasks
+   * @param {*} cb
+   */
+  fetchTasksFromStorage = async (cb) => {
+    if (this.api) {
+      try {
+        const values = await this.api.query.automationPrice.tasks.entries();
+        cb(_.map(values, (item) => item[1].toHuman()));
+      } catch (ex) {
+        console.log('subscribePrice exception', ex);
+      }
+    }
+  };
+
+  /**
+   * Subscribe to all chain events, filter out TaskScheduled, TaskExecuted, TaskCancelled events, and run callback with tasks contained in the events
+   * @param {function} cb callback function from the caller
+   */
   subscribeTasks = async (cb) => {
     if (this.api && _.isUndefined(this.subscriptionTasks)) {
       try {
-        const metadata = await this.api.rpc.state.getMetadata();
-        console.log('subscribeTasks.metadata', metadata.toHuman());
+        const unsub = await this.api.query.system.events(async (events) => {
+          const foundTaskEvents = _.filter(_.map(events, ({ phase, event: { data, method, section } }) => {
+            // console.log(`${phase.toString()} : ${section}.${method} ${data.toString()}`);
 
-        // // const storageValues =   xxhash128("ModuleName") + xxhash128("StorageName");
-        // // Extract the info
-        // const { meta, method, section } = this.api.query.automationPrice.tasks;
-
-        // const section = 'AutomationPrice';
-        // const method = 'AccountTasks';
-        // console.log('section', section, 'method', method);
-
-        // const encodedSection = xxhashAsHex(section, 128);
-        // const encodedMethod = xxhashAsHex(method, 128);
-
-        // console.log('encodedSection', encodedSection, 'encodedMethod', encodedMethod);
-        // const concated = encodedSection + _.trimStart(encodedMethod, '0x');
-        // console.log('concated', concated);
-
-        // Display some info on a specific entry
-        // console.log(section, method, meta.toHuman());
-        // console.log(`query key: ${this.api.query.automationPrice.tasks.key()}`);
-
-        // const queryKey = xxhashAsHex(stringToU8a('automationPrice tasks'), 128);
-        // console.log('queryKey', queryKey.toString());
-        // const storageKeys = await this.api.query.automationPrice.accountTasks;
-        // console.log('subscribeTasks.storageKeys', storageKeys);
-
-        // const unsub = await this.api.rpc.state.subscribeStorage([concated], (result) => {
-        //   console.log('subscribeTask.api.rpc.state.subscribeStorage.result', result);
-        //   console.log('subscribeTask.api.rpc.state.subscribeStorage.result.isNone', result[0].isNone);
-
-        //   let valuesToReturn = [];
-        //   if (!_.isEmpty(result) && !result[0].isNone) {
-        //     valuesToReturn = _.map(result, (item) => item.toHuman());
-        //   }
-
-        //   cb(valuesToReturn);
-        // });
-
-        const unsub = await this.api.query.system.events((events) => {
-          console.log('subscribeTasks.api.rpc.chain.subscribeAllHeads.events', events);
-
-          events.forEach(({ phase, event: { data, method, section } }) => {
-            if (section === 'automationPrice' && method === 'TaskScheduled') {
-              console.log(`${phase.toString()} : ${section}.${method} ${data.toString()}`);
-              console.log('data.toHuman', data.toHuman());
+            if (section === 'automationPrice') { // TaskScheduled, TaskExecuted, TaskCancelled events contain the same data for now
               const eventData = data.toHuman(); // {who: '6757gffjjMc7E4sZJtkfvq8fmMzH2NPRrEL3f3tqpr2PzXYq', taskId: '1775-0-1'}
-
-              // TODO: use system events to get notification of new tasks
-              // turingAdapter.getTask(taskId)
+              return { section, method, data: { ownerId: eventData.who, taskId: eventData.taskId } };
             }
-          });
+
+            return undefined;
+          }), (event) => !_.isUndefined(event));
+
+          cb(foundTaskEvents);
         });
 
         // this.subscriptions.push(unsub);
@@ -104,14 +77,18 @@ class TuringAdapter {
     }
   };
 
+  /**
+   * Subscribe to priceRegistry storage value change and run callback with the new value
+   * @param {function} cb callback function from the caller
+   */
   subscribePrice = async (cb) => {
     if (this.api && _.isUndefined(this.subscriptionPrice)) {
       try {
         const storageKeys = await this.api.query.automationPrice.priceRegistry.keys('shibuya', 'arthswap');
-        const unsub = await this.api.rpc.state.subscribeStorage(storageKeys, (result) => {
+        const unsub = await this.api.rpc.state.subscribeStorage(storageKeys, (results) => {
           // console.log('subscribePrice.api.rpc.state.subscribeStorage.result', result);
 
-          cb(_.map(result, (item) => item.toHuman()));
+          cb(_.map(results, (item) => item.toHuman()));
         });
 
         this.subscriptions.push(unsub);

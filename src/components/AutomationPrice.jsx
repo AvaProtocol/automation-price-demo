@@ -178,7 +178,7 @@ function AutomationTimeComponent() {
       };
 
       const triggerParam = [100];
-      const submittedAt = moment().unix();
+      const expiredAt = moment().add(7, 'days').unix();
       const triggerFunction = 'gt';
 
       const taskExtrinsic = turingApi.tx.automationPrice.scheduleXcmpTaskThroughProxy(
@@ -186,7 +186,7 @@ function AutomationTimeComponent() {
         automationPriceAsset.exchange,
         automationPriceAsset.asset1,
         automationPriceAsset.asset2,
-        submittedAt,
+        expiredAt,
         triggerFunction,
         triggerParam,
         { V3: rocstarLocation },
@@ -250,27 +250,27 @@ function AutomationTimeComponent() {
       console.log('Send batchExtrinsics to chain: ', batchExtrinsics.map((item) => item.method.toHex()));
       await parachainApi.tx.utility.batch(batchExtrinsics).signAndSend(wallet?.address, { nonce: -1, signer: wallet?.signer });
 
-      console.log('Listen automationPrice.TaskScheduled event on Turing...');
-      const listenResult = await listenEvents(turingApi, 'automationPrice', 'TaskScheduled', undefined, 60000);
-      console.log('listenResult', listenResult);
-      const { foundEvent: taskScheduledEvent } = listenResult;
-      console.log('taskScheduledEvent', taskScheduledEvent);
-      const taskId = Buffer.from(taskScheduledEvent.event.data.taskId).toString();
-      console.log('taskId:', taskId);
+      // console.log('Listen automationPrice.TaskScheduled event on Turing...');
+      // const listenResult = await listenEvents(turingApi, 'automationPrice', 'TaskScheduled', undefined, 60000);
+      // console.log('listenResult', listenResult);
+      // const { foundEvent: taskScheduledEvent } = listenResult;
+      // console.log('taskScheduledEvent', taskScheduledEvent);
+      // const taskId = Buffer.from(taskScheduledEvent.event.data.taskId).toString();
+      // console.log('taskId:', taskId);
 
-      console.log(`Wait for the price to be ${triggerFunction === 'lt' ? 'less than' : 'greater than'} ${triggerParam[0]}.`);
-      console.log(`Listen xcmpQueue.XcmpMessageSent event with taskId(${taskId}) and find xcmpQueue.XcmpMessageSent event on Turing...`);
-      const { foundEvent: xcmpMessageSentEvent } = await listenEvents(turingApi, 'xcmpQueue', 'XcmpMessageSent', { taskId });
-      const { messageHash } = xcmpMessageSentEvent.event.data;
-      console.log('messageHash: ', messageHash.toString());
+      // console.log(`Wait for the price to be ${triggerFunction === 'lt' ? 'less than' : 'greater than'} ${triggerParam[0]}.`);
+      // console.log(`Listen xcmpQueue.XcmpMessageSent event with taskId(${taskId}) and find xcmpQueue.XcmpMessageSent event on Turing...`);
+      // const { foundEvent: xcmpMessageSentEvent } = await listenEvents(turingApi, 'xcmpQueue', 'XcmpMessageSent', { taskId });
+      // const { messageHash } = xcmpMessageSentEvent.event.data;
+      // console.log('messageHash: ', messageHash.toString());
 
-      console.log(`Listen xcmpQueue.Success event with messageHash(${messageHash}) and find proxy.ProxyExecuted event on Parachain...`);
-      const { events: xcmpQueueEvents, foundEventIndex: xcmpQueuefoundEventIndex } = await listenEvents(parachainApi, 'xcmpQueue', 'Success', { messageHash });
-      const proxyExecutedEvent = _.find(_.reverse(xcmpQueueEvents), (event) => {
-        const { section, method } = event.event;
-        return section === 'proxy' && method === 'ProxyExecuted';
-      }, xcmpQueueEvents.length - xcmpQueuefoundEventIndex - 1);
-      console.log('ProxyExecuted event: ', JSON.stringify(proxyExecutedEvent.event.data.toHuman()));
+      // console.log(`Listen xcmpQueue.Success event with messageHash(${messageHash}) and find proxy.ProxyExecuted event on Parachain...`);
+      // const { events: xcmpQueueEvents, foundEventIndex: xcmpQueuefoundEventIndex } = await listenEvents(parachainApi, 'xcmpQueue', 'Success', { messageHash });
+      // const proxyExecutedEvent = _.find(_.reverse(xcmpQueueEvents), (event) => {
+      //   const { section, method } = event.event;
+      //   return section === 'proxy' && method === 'ProxyExecuted';
+      // }, xcmpQueueEvents.length - xcmpQueuefoundEventIndex - 1);
+      // console.log('ProxyExecuted event: ', JSON.stringify(proxyExecutedEvent.event.data.toHuman()));
     } catch (error) {
       console.log(error);
     }

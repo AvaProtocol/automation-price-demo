@@ -40,103 +40,81 @@ function TaskList(/* { tasks, setTasks } */) {
     };
   }, []);
 
+  /**
+   * Update the displayArray by the taskMap, preparing tasks for React Table
+   * @param {*} map The map of TaskMap
+   */
+  const setDisplayArrayByTaskMap = (map) => {
+    const taskItems = _.map(Array.from(map.values()), (item) => {
+      const taskItem = new Task(item);
+      return taskItem.toJson();
+    });
+
+    // Update Table View right away for displaytrimString
+    const formattedArray = taskItems.map(({ taskId, ownerId, ...rest }) => ({
+      key: `${taskId}`,
+      taskId,
+      ownerId: trimString(ownerId, 12),
+      ...rest,
+    }));
+
+    setDisplayArray(formattedArray);
+  };
+
   useEffect(() => {
     if (_.isEmpty(adapters) || _.isUndefined(adapters[0])) {
       return;
     }
 
     try {
-      console.log('Subscribe to tasks since Turing adapter is set.', adapters[0]);
       const turingAdapter = adapters[0];
 
-      turingAdapter?.subscribeTasks((values) => {
-        console.log('subscribeTasks. values', values);
-
-        const existingArray = taskMap.values();
-
-        const differences = _.xor(existingArray, values);
+      // One-time fetch automationPrice.tasks in the beginning for the initialization of TaskList
+      turingAdapter?.fetchTasksFromStorage((newTaskArray) => {
+        // Examine the new array to see if there are any new tasks
+        const differences = _.difference(newTaskArray, taskMap.values());
 
         if (_.isEmpty(differences)) {
           return;
         }
 
-        console.log('Updating tasks array since the old value is different. Differences:', differences);
+        console.log('Updating tasks array since the new array contains more items,', newTaskArray);
 
+        // Add new tasks to taskMap and update displayArray
         _.each(differences, (item) => {
-          console.log('differences.item', item);
-
-          if (taskMap.has(item.taskId)) { // Previously existed task dispeared; this means completion or deletion
-            const existingItem = taskMap.get(item.taskId);
-            existingItem.status = 'Completed';
-            // taskMap.set(taskItem.id, newTaskJson);
-          } else { // The diff is from the new array; this means addition
-            taskMap.set(item.taskId, item);
-          }
+          taskMap.set(item.taskId, item);
         });
 
-        console.log('taskMap', taskMap);
         setTaskMap(taskMap);
+        setDisplayArrayByTaskMap(taskMap);
+      });
 
-        console.log('taskMap.values()', Array.from(taskMap.values()));
+      turingAdapter?.subscribeTasks((updatedTasks) => {
+        if (!_.isEmpty(updatedTasks)) {
+          console.log('subscribeTasks.updatedTasks', updatedTasks);
 
-        const taskItems = _.map(Array.from(taskMap.values()), (item) => {
-          const taskItem = new Task(item);
-          return taskItem.toJson();
-        });
-        console.log('taskItems', taskItems);
+          // Handle TaskCancelled, TaskExecuted, and TaskScheduled events,
+          _.each(updatedTasks, (updatedTask) => {
+            const { method, data: { taskId } } = updatedTask;
+            if (method === 'TaskCancelled' && taskMap.has(taskId)) {
+              taskMap.get(taskId).status = 'Cancelled';
+            } else if (method === 'TaskExecuted' && taskMap.has(taskId)) {
+              taskMap.get(taskId).status = 'Completed';
+            } else if (method === 'TaskScheduled') {
+              taskMap.set(taskId, updatedTask?.data);
+            }
+          });
 
-        // Update Table View right away for displaytrimString
-        const formattedArray = taskItems.map(({ owner, ...rest }) => ({
-          key: `${rest.id}`,
-          owner: trimString(owner, 12),
-          ...rest,
-        }));
-
-        console.log('formattedArray', formattedArray);
-        setDisplayArray(formattedArray);
+          setTaskMap(taskMap);
+          setDisplayArrayByTaskMap(taskMap);
+        }
       });
     } catch (error) {
       console.error('Error fetching data:', error);
     }
-  }, [adapters, taskMap, setTaskMap]);
-
-  const updateTasks = (tasks) => {
-    _.each(tasks, (item) => {
-      const newTask = new Task(item);
-      const newTaskJson = newTask.toJson();
-
-      // Check if the key exists in the Map
-      if (!taskMap.has(newTaskJson.id)) {
-        console.log('A new Task is to be set', newTaskJson);
-        taskMap.set(newTaskJson.id, newTaskJson);
-      }
-    });
-    // const newTask = new Task(record);
-    // const newTaskJson = newTask.toJson();
-
-    // // Check if the key exists in the Map
-    // if (!taskMap.has(newTaskJson.id)) {
-    //   console.log('A new Task is to be set', newTaskJson);
-    //   taskMap.set(newTaskJson.id, newTaskJson);
-    // }
-
-    console.log('taskMap', taskMap);
-
-    setTaskMap(taskMap);
-    // Update Table View right away for display
-    const formattedArray = Array.from(taskMap.values()).map(({ owner, ...rest }) => ({
-      key: `${rest.id}`,
-      owner: trimString(owner, 12),
-      ...rest,
-    }));
-
-    console.log('formattedArray', formattedArray);
-    setDisplayArray(formattedArray);
-  };
+  }, [adapters, taskMap, setTaskMap, setDisplayArray]);
 
   const onClickCancel = useCallback(async (record) => {
-    console.log('onClickCancel is called', 'record.id', record.id);
-
     const api = adapters[0]?.api;
     const parachainApi = adapters[1]?.api;
     const turingParaId = (await api.query.parachainInfo.parachainId()).toNumber();
@@ -145,9 +123,9 @@ function TaskList(/* { tasks, setTasks } */) {
     const assetId = storageValue.unwrap();
 
     // TODO: the cancel needs to go through astar
-    console.log(`Send Xcm message to Turing to cancel the task ${record.id} ...`);
+    console.log(`Send Xcm message to Turing to cancel the task ${record.taskId} ...`);
 
-    const cancelExtrinsic = api.tx.automationPrice.cancelTask(record.id);
+    const cancelExtrinsic = api.tx.automationPrice.cancelTask(record.taskId);
 
     const encodedCallWeightRaw = (await cancelExtrinsic.paymentInfo(wallet?.address)).weight;
     const encodedCallWeight = { refTime: encodedCallWeightRaw.refTime.unwrap(), proofSize: encodedCallWeightRaw.proofSize.unwrap() };
@@ -204,8 +182,8 @@ function TaskList(/* { tasks, setTasks } */) {
 
   return (
     <Table dataSource={displayArray} pagination={false} size="middle">
-      <Column title="Task Id" dataIndex="id" key="id" />
-      <Column title="Owner" dataIndex="owner" key="owner" />
+      <Column title="Task Id" dataIndex="taskId" key="taskId" />
+      <Column title="Owner" dataIndex="ownerId" key="ownerId" />
       <Column title="Destination" dataIndex="destination" key="destination" />
       <Column title="Asset" dataIndex="asset" key="asset" />
       <Column title="Condition" dataIndex="condition" key="condition" />
@@ -213,9 +191,20 @@ function TaskList(/* { tasks, setTasks } */) {
         title="Status"
         dataIndex="status"
         key="status"
-        render={(_any, record) => (
-          <Tag color="processing">Pending</Tag>
-        )}
+        render={(_any, record) => {
+          switch (record.status) {
+            case 'Pending':
+              return <Tag color="processing">{record.status}</Tag>;
+            case 'Cancelled':
+              return <Tag color="volcano">{record.status}</Tag>;
+            case 'Completed':
+              return <Tag color="success">{record.status}</Tag>;
+            default:
+              break;
+          }
+
+          return undefined;
+        }}
       />
       <Column
         title="Details"
@@ -230,10 +219,7 @@ function TaskList(/* { tasks, setTasks } */) {
         render={(record) => (
           <Space size="middle">
             <SignButton
-              onClickCallback={() => {
-                console.log('onClickCancel is called', 'record', record);
-                return onClickCancel(record);
-              }}
+              onClickCallback={() => onClickCancel(record)}
               wallet={wallet}
               tooltip="Connect wallet to delete task"
             >Cancel
