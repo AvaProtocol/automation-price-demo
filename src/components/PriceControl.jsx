@@ -3,7 +3,7 @@ import _ from 'lodash';
 import moment from 'moment';
 import PropTypes from 'prop-types'; // Import PropTypes
 import {
-  Button as AntButton, Space, message, Modal, InputNumber, Result,
+  Space, message, Modal, InputNumber, Result,
 } from 'antd';
 import SignButton from './SignButton';
 
@@ -34,7 +34,7 @@ function PriceControl({
   }, [currentPrice, setCurrentPrice]);
 
   const subPriceCallback = useCallback((updatedPrices) => {
-    console.log('subscribePrice.updatedPrices', updatedPrices);
+    // console.log('subscribePrice.updatedPrices', updatedPrices);
 
     const newPriceObject = updatedPrices[0]?.data;
 
@@ -61,6 +61,7 @@ function PriceControl({
       // One-time fetch price function to intialize currentPrice and priceArray
       turingAdapter?.fetchPrice(fetchPriceCallback);
 
+      // Subscribe to price updates from system events
       turingAdapter?.subscribePrice(subPriceCallback);
     } catch (error) {
       console.error('Error fetching data:', error);

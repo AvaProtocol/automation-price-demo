@@ -118,7 +118,7 @@ class TuringAdapter {
 
         this.subPrice = unsub;
       } catch (ex) {
-        console.log('subscribeTask exception', ex);
+        console.log('subscribePrice exception', ex);
       }
     }
   };

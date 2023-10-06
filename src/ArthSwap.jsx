@@ -1,5 +1,5 @@
 import React, {
-  useState, useEffect, useCallback, useRef, useLayoutEffect,
+  useState, useEffect,
 } from 'react';
 import _ from 'lodash';
 import {
@@ -22,7 +22,7 @@ import NetworkSelect from './components/NetworkSelect';
 const { Column } = Table;
 
 const {
-  Header, Footer, Sider, Content,
+  Header, Content,
 } = Layout;
 
 const PRICE_START = 80;
@@ -40,7 +40,6 @@ export const waitPromises = (promises) => new Promise((resolve, reject) => {
 function ArthSwapApp() {
   // App states
   const [priceArray, setPriceArray] = useState([]);
-  const [priceMap, setPriceMap] = useState(new Map()); // TODO: use map to control price list
   const [currentPrice, setCurrentPrice] = useState(null);
   const { token } = theme.useToken();
 
