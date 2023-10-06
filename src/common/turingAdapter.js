@@ -3,9 +3,6 @@ import '@oak-network/api-augment';
 
 import { rpc, types, runtime } from '@oak-network/types';
 import { ApiPromise, WsProvider } from '@polkadot/api';
-import { chains, assets } from '@oak-network/config';
-
-const { turingLocal } = chains;
 
 class TuringAdapter {
   constructor(config) {
@@ -13,8 +10,6 @@ class TuringAdapter {
     this.api = undefined;
     this.isInitializing = false;
     this.subscriptions = [];
-    this.unsub = undefined;
-    this.taskSubscription = undefined;
   }
 
   initialize = async () => {
@@ -31,28 +26,84 @@ class TuringAdapter {
       });
 
       this.isInitializing = false;
-      console.log('TuringAdapter.initialize has completed ApiPromise.create.', this.api);
+      // console.log('TuringAdapter.initialize has completed ApiPromise.create.', this.api);
     }
 
     return this.api;
   };
 
-  subscribeTask = async () => {
-    if (this.api && _.isUndefined(this.taskSubscription)) {
+  /**
+   * Get all entries in the automationPrice.tasks storage and run callback with retrieved tasks
+   * @param {*} cb
+   */
+  fetchTasksFromStorage = async (cb) => {
+    if (this.api) {
       try {
-        const unsub = await this.api.query.automationPrice.tasks.keys(['6757gffjjMc7E4sZJtkfvq8fmMzH2NPRrEL3f3tqpr2PzXYq'], (result) => {
-          console.log('automationPrice.tasks', result);
+        const values = await this.api.query.automationPrice.tasks.entries();
+        cb(_.map(values, (item) => item[1].toHuman()));
+      } catch (ex) {
+        console.log('subscribePrice exception', ex);
+      }
+    }
+  };
+
+  /**
+   * Subscribe to all chain events, filter out TaskScheduled, TaskExecuted, TaskCancelled events, and run callback with tasks contained in the events
+   * @param {function} cb callback function from the caller
+   */
+  subscribeTasks = async (cb) => {
+    if (this.api && _.isUndefined(this.subscriptionTasks)) {
+      try {
+        const unsub = await this.api.query.system.events(async (events) => {
+          const foundTaskEvents = _.filter(_.map(events, ({ phase, event: { data, method, section } }) => {
+            // console.log(`${phase.toString()} : ${section}.${method} ${data.toString()}`);
+
+            if (section === 'automationPrice') { // TaskScheduled, TaskExecuted, TaskCancelled events contain the same data for now
+              const eventData = data.toHuman(); // {who: '6757gffjjMc7E4sZJtkfvq8fmMzH2NPRrEL3f3tqpr2PzXYq', taskId: '1775-0-1'}
+              return { section, method, data: { ownerId: eventData.who, taskId: eventData.taskId } };
+            }
+
+            return undefined;
+          }), (event) => !_.isUndefined(event));
+
+          cb(foundTaskEvents);
         });
 
-        this.taskSubscription = unsub;
+        this.subscriptions.push(unsub);
       } catch (ex) {
         console.log('subscribeTask exception', ex);
       }
     }
   };
 
+  /**
+   * Subscribe to priceRegistry storage value change and run callback with the new value
+   * @param {function} cb callback function from the caller
+   */
+  subscribePrice = async (cb) => {
+    if (this.api && _.isUndefined(this.subscriptionPrice)) {
+      try {
+        const storageKeys = await this.api.query.automationPrice.priceRegistry.keys('shibuya', 'arthswap');
+        const unsub = await this.api.rpc.state.subscribeStorage(storageKeys, (results) => {
+          // console.log('subscribePrice.api.rpc.state.subscribeStorage.result', result);
+
+          cb(_.map(results, (item) => item.toHuman()));
+        });
+
+        this.subscriptions.push(unsub);
+      } catch (ex) {
+        console.log('subscribePrice exception', ex);
+      }
+    }
+  };
+
   disconnect = async () => {
-    this.taskSubscription?.();
+    // Call all the unsub functions
+    _.each(this.subscriptions, (unsub) => {
+      unsub();
+    });
+
+    // Disconnect the api
     this.api.disconnect();
   };
 }

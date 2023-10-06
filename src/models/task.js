@@ -2,12 +2,14 @@ import _ from 'lodash';
 
 class Task {
   constructor(raw) {
-    this.id = raw.taskId;
-    this.owner = raw.ownerId;
-    this.triggerFunction = raw.triggerFunction;
-    this.triggerParams = raw.triggerParams;
+    this.taskId = raw.taskId;
+    this.ownerId = raw.ownerId;
+    this.triggerFunction = raw.triggerFunction || 'gt';
+    this.triggerParams = raw.triggerParams || ['100'];
     this.action = raw.action;
-    this.assetPair = raw.assetPair;
+    this.assetPair = raw.assetPair || ['WRSTR', 'USDT'];
+    this.status = raw.status || 'Pending';
+    this.raw = raw;
   }
 
   get asset() {
@@ -16,7 +18,7 @@ class Task {
 
   get executionFee() {
     const { action } = this;
-    const fee = action.XCMP.executionFee.amount;
+    const fee = action?.XCMP?.executionFee?.amount;
 
     return fee;
   }
@@ -43,7 +45,7 @@ class Task {
 
   get destination() {
     const { action } = this;
-    const fee = action.XCMP.destination;
+    // const fee = action?.XCMP?.destination;
 
     // TODO: we need a map in this app to identify the destination with the below criteria:
     // 1. The chain that is defined as an object in action.XCMP.destination
@@ -57,13 +59,13 @@ class Task {
 
   toJson() {
     const {
-      asset, executionFee, condition, destination,
+      asset, executionFee, condition, destination, status,
     } = this;
     const { action } = this;
 
     return {
-      id: this.id,
-      owner: this.owner,
+      taskId: this.taskId,
+      ownerId: this.ownerId,
       triggerFunction: this.triggerFunction,
       triggerParams: this.triggerParams,
       action,
@@ -71,6 +73,7 @@ class Task {
       asset,
       condition,
       destination,
+      status,
     };
   }
 }

@@ -19,7 +19,7 @@ import SignButton from './SignButton';
 
 function AutomationTimeComponent() {
   const {
-    wallet, apis,
+    wallet, adapters,
   } = useWalletPolkadot();
 
   const onClickSchedule = useCallback(async () => {
@@ -28,8 +28,8 @@ function AutomationTimeComponent() {
     }
 
     try {
-      const turingApi = apis[0];
-      const parachainApi = apis[1];
+      const turingApi = adapters[0]?.api;
+      const parachainApi = adapters[1]?.api;
 
       const parachainParaId = (await parachainApi.query.parachainInfo.parachainId()).toNumber();
       const parachainSs58Prifx = parachainApi.consts.system.ss58Prefix.toNumber();
@@ -273,7 +273,7 @@ function AutomationTimeComponent() {
     } catch (error) {
       console.log(error);
     }
-  }, [wallet, apis]);
+  }, [wallet, adapters]);
 
   return (
     <SignButton tooltip="Please connect a polkadot.js wallet first" onClickCallback={onClickSchedule} wallet={wallet}>Daily Cost Average</SignButton>

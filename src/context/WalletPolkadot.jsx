@@ -9,8 +9,8 @@ const Context = createContext(null);
 const initialState = {
   wallet: null,
   setWallet: () => {},
-  apis: null,
-  setApis: () => {},
+  adapters: null,
+  setAdapters: () => {},
 };
 
 function useWalletPolkadot() {
@@ -19,7 +19,7 @@ function useWalletPolkadot() {
 
 function WalletPolkadotContextProvider({ children }) {
   const [wallet, setWallet] = useState(null);
-  const [apis, setApis] = useState([]);
+  const [adapters, setAdapters] = useState([]);
 
   /**
      * The purpose of this wrapper is to add checks in this file before setting the wallet?.
@@ -29,14 +29,14 @@ function WalletPolkadotContextProvider({ children }) {
     setWallet(newValue);
   };
 
-  const updateApis = (newValue) => {
-    setApis(newValue);
+  const updateAdapters = (newValue) => {
+    setAdapters(newValue);
   };
 
   // Use useMemo to not recreate the value on every render to prevent performance issues.
   const memoizedContextValue = useMemo(() => ({
-    wallet, setWallet: updateWallet, apis, setApis: updateApis,
-  }), [wallet, setWallet, apis, setApis]);
+    wallet, setWallet: updateWallet, adapters, setAdapters: updateAdapters,
+  }), [wallet, setWallet, adapters, setAdapters]);
 
   return (
     <Context.Provider value={memoizedContextValue}>

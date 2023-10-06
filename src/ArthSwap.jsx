@@ -16,7 +16,6 @@ import { MOMENT_FORMAT } from './config';
 import WalletConnectMetamask from './components/WalletConnectMetamask';
 import WalletConnectPolkadotjs from './components/WalletConnectPolkadotjs';
 import PriceControl from './components/PriceControl';
-import useSubscribePriceRegistry from './components/useSubscribePriceRegistry';
 import TaskList from './components/TaskList';
 import NetworkSelect from './components/NetworkSelect';
 
@@ -41,7 +40,8 @@ export const waitPromises = (promises) => new Promise((resolve, reject) => {
 function ArthSwapApp() {
   // App states
   const [priceArray, setPriceArray] = useState([]);
-  const [currentPrice, setCurrentPrice] = useState(PRICE_START);
+  const [currentPrice, setCurrentPrice] = useState(null);
+  const [tasks, setTasks] = useState([]);
   const { token } = theme.useToken();
 
   useEffect(() => {
@@ -84,8 +84,6 @@ function ArthSwapApp() {
     newPriceArray.push(priceItem);
     setPriceArray(newPriceArray);
   };
-
-  useSubscribePriceRegistry(updateAssetPrice);
 
   const onFinish = (values) => {
     console.log('values: ', values);
@@ -132,6 +130,14 @@ function ArthSwapApp() {
           Layout: {
             bodyBg: 'rgba(245, 245, 245, 0.5)',
             headerBg: 'rgba(255, 255, 255, 0.6)',
+          },
+          Result: {
+            iconFontSize: 48,
+            titleFontSize: 16,
+          },
+          InputNumber: {
+            handleVisible: true,
+            controlWidth: 180,
           },
         },
       }}
@@ -309,7 +315,7 @@ function ArthSwapApp() {
                         paddingBottom: 18,
                       }}
                     >
-                      ArthSwap Price Feed
+                      Orcale - ArthSwap Prices
                     </div>
                     <div style={{ paddingLeft: 18 }}>
                       <Space style={{ paddingBottom: 18 }}>
@@ -319,7 +325,7 @@ function ArthSwapApp() {
                             color: token.colorText,
                           }}
                         >
-                          Current Price: {currentPrice}
+                          Current Price: {_.isNull(currentPrice) ? '' : currentPrice}
                         </div>
                         <Spin spinning={false} />
                       </Space>
