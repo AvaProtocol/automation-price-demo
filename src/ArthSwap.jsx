@@ -59,14 +59,6 @@ function ArthSwapApp() {
     };
   }, []); // The empty dependency array [] ensures that this effect runs only once, similar to componentDidMount
 
-  const onFinish = (values) => {
-    console.log('values: ', values);
-  };
-
-  const onValuesChange = () => {};
-
-  const volatilityElement = null;
-
   const headerStyle = {
     position: 'sticky',
     top: 0,
@@ -112,6 +104,9 @@ function ArthSwapApp() {
           InputNumber: {
             handleVisible: true,
             controlWidth: 180,
+          },
+          Form: {
+            itemMarginBottom: 16,
           },
         },
       }}
@@ -275,7 +270,6 @@ function ArthSwapApp() {
                             </div>
                             )}
                           </dl>
-                        </Modal>
                       </div>
                     </Form> */}
                   </Container>

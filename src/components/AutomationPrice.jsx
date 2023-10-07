@@ -1,31 +1,41 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import _ from 'lodash';
 import BN from 'bn.js';
 import moment from 'moment';
 import { u8aToHex } from '@polkadot/util';
-import { Buffer } from 'buffer';
 import {
-  Button, Space, message,
+  Space, message, InputNumber, Result, Modal, Form, Row, Col, Input, Select, Button,
 } from 'antd';
+import { CheckCircleTwoTone } from '@ant-design/icons';
 import Keyring from '@polkadot/keyring';
-
+import { useNetwork } from '../context/Network';
 import { useWalletPolkadot } from '../context/WalletPolkadot';
 import {
-  listenEvents, sendExtrinsic, getDerivativeAccountV2, getDerivativeAccountV3,
+  sendExtrinsic, getDerivativeAccountV2, getDerivativeAccountV3,
 } from '../common/utils';
 import SignButton from './SignButton';
 
 import { WEIGHT_REF_TIME_PER_SECOND } from '../config';
 
+const DEFAULT_INPUT_NUMBER = 90;
+const { Option } = Select;
+
 function AutomationTimeComponent() {
+  const { network } = useNetwork();
+
   const {
     wallet, adapters,
   } = useWalletPolkadot();
 
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [inputNumber, setInputNumber] = useState(DEFAULT_INPUT_NUMBER);
+
   /**
    * Use MetaMask to schedule a Swap transaction via XCM
    */
-  const onClickScheduleByPrice = useCallback(async () => {
+  const scheduleByPrice = useCallback(async () => {
     if (_.isNull(wallet)) {
       message.error('Wallet needs to be connected first.');
       return;
@@ -277,9 +287,179 @@ function AutomationTimeComponent() {
     }
   }, [wallet, adapters]);
 
-  return (
-    <SignButton type="primary" tooltip="Please connect a polkadot.js wallet first" onClickCallback={onClickScheduleByPrice} wallet={wallet}>Limit Order</SignButton>
+  const onClickBtnLimitOrder = useCallback(async () => {
+    setIsModalOpen(true);
+  }, []);
 
+  const handleCancel = () => {
+    setIsModalOpen(false);
+    setIsSuccess(false);
+    setIsLoading(false);
+  };
+
+  // const handleOk = async () => {
+  //   setIsLoading(true);
+
+  //   console.log('handleOk. placing the limit order', inputNumber);
+  //   await scheduleByPrice();
+
+  //   setIsSuccess(true);
+  //   setIsLoading(false);
+  // };
+
+  const onChangeInputNumber = (value) => {
+    setInputNumber(_.toNumber(value));
+  };
+
+  const formItemLayout = {
+    labelCol: { span: 6 },
+    wrapperCol: { span: 14 },
+  };
+  const [form] = Form.useForm();
+  const orderLimitPrice = Form.useWatch('input-number-limit-price', form);
+  const orderAmount = Form.useWatch('input-number-amount', form);
+  const selectOption = Form.useWatch('select-buy-sell', form);
+
+  console.log('selectOption', selectOption);
+
+  const onFinish = async (values) => {
+    console.log('Received values of form: ', values);
+    await scheduleByPrice();
+    message.success('Limit order has been placed.');
+    setIsSuccess(true);
+  };
+
+  const onCreate = (values) => {
+    console.log('Received values of form: ', values);
+    setIsModalOpen(false);
+  };
+
+  const onReset = () => {
+    form.resetFields();
+    setIsSuccess(false);
+    setIsLoading(false);
+  };
+
+  return (
+    <>
+      <SignButton type="primary" tooltip="Please connect a polkadot.js wallet first" onClickCallback={onClickBtnLimitOrder} wallet={wallet}>Limit Order</SignButton>
+      <Modal
+        title="Place Limit Order"
+        open={isModalOpen}
+        onOk={() => {
+          form
+            .validateFields()
+            .then((values) => {
+              form.resetFields();
+              onCreate(values);
+            })
+            .catch((info) => {
+              console.log('Validate Failed:', info);
+            });
+        }}
+        footer={null}
+        onCancel={handleCancel}
+        maskClosable={false}
+      >
+        <Space size="middle" direction="vertical">
+          <div>Set a new value to the price of the pair</div>
+          <Form
+            form={form}
+            name="place_limit_order"
+            {...formItemLayout}
+            initialValues={{
+              'select-buy-sell': ['limit-buy'],
+              'input-number-limit-price': 90,
+              'input-number-amount': 36,
+            }}
+            onFinish={onFinish}
+            onReset={onReset}
+            autoComplete="off"
+          >
+
+            <Form.Item label="Destination">
+              <span className="ant-form-text">Shibuya</span>
+            </Form.Item>
+
+            <Form.Item label="Exchange">
+              <span className="ant-form-text">ArthSwap (Contract address)</span>
+            </Form.Item>
+
+            <Form.Item label="Execute Call">
+              <span className="ant-form-text">swapExactETHForTokens</span>
+            </Form.Item>
+
+            <Form.Item
+              name="select-buy-sell"
+              label="Buy/Sell"
+              rules={[{ required: true, message: 'Please select between Buy or Sell' }]}
+            >
+              <Select placeholder="Please select between Buy or Sell">
+                <Option value="limit-buy">Limit Buy</Option>
+                <Option value="limit-sell">Limit Sell</Option>
+              </Select>
+            </Form.Item>
+
+            <Form.Item label="Condition">
+              <Space direction="vertical">
+                <span className="ant-form-text" style={{ marginLeft: 8 }}> {selectOption?.[0] === 'limit-buy' ? 'When price is below' : 'When price is over' }  </span>
+                <Form.Item name="input-number-limit-price" noStyle>
+                  <InputNumber min={80} max={120} step={10} onChange={onChangeInputNumber} addonAfter="WRSTR / USDC" />
+                </Form.Item>
+              </Space>
+            </Form.Item>
+
+            <Form.Item label="Amount">
+              <Form.Item name="input-number-amount" rules={[{ required: true, message: 'Please enter an amount', type: 'number' }]}>
+                <InputNumber min={1} max={100} addonAfter="USDC" />
+              </Form.Item>
+            </Form.Item>
+
+            <Form.Item label="Expected Output:">
+              <span className="ant-form-text">{orderLimitPrice && orderAmount ? _.floor(orderAmount / orderLimitPrice, 4) : ''}</span> WRSTR
+            </Form.Item>
+
+            <Form.Item label="Important:">
+              <span>Turing will trigger the order after the price condition has met, but it cannot guarantee the price filled.</span>
+            </Form.Item>
+
+            <Form.Item wrapperCol={{ span: 12, offset: 6 }}>
+              <Space size="large">
+                <Button type="primary" htmlType="submit">
+                  Confirm
+                </Button>
+                <Button htmlType="reset">Reset</Button>
+              </Space>
+            </Form.Item>
+
+            {/*
+                <div>
+                  <dt>Status</dt>
+                  <dd>{swapStatus}</dd>
+                </div>
+                {receiptSwap?.blockNumber && (
+                <div>
+                  <dt>Mined Block Height</dt>
+                  <dd>{receiptSwap?.blockNumber}</dd>
+                </div>
+                )}
+                {receiptSwap?.hash && (
+                <div>
+                  <dt>Transaction Hash</dt>
+                  <dd>{receiptSwap?.hash}</dd>
+                </div>
+                )} */}
+          </Form>
+          {isSuccess && (
+          <Space style={{
+            fontSize: 14, justifyContent: 'center', width: '100%', marginBottom: 16,
+          }}
+          ><CheckCircleTwoTone twoToneColor="#52c41a" /><span>The transaction has been confirmed on chain.</span>
+          </Space>
+          )}
+        </Space>
+      </Modal>
+    </>
   );
 }
 

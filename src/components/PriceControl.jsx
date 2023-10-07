@@ -68,12 +68,6 @@ function PriceControl({
     }
   }, [adapters]);
 
-  const handleCancel = () => {
-    setIsModalOpen(false);
-    setIsSuccess(false);
-    setIsLoading(false);
-  };
-
   const onClickInitAsset = useCallback(async () => {
     console.log('onClickInitAsset is called');
 
@@ -128,10 +122,16 @@ function PriceControl({
 
   const onClickPriceUp = useCallback(async () => {
     setIsModalOpen(true);
-  }, [adapters, currentPrice, step, wallet]);
+  }, []);
 
   const showModal = () => {
     setIsModalOpen(true);
+  };
+
+  const handleCancel = () => {
+    setIsModalOpen(false);
+    setIsSuccess(false);
+    setIsLoading(false);
   };
 
   const handleOk = async () => {
