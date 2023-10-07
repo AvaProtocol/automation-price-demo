@@ -57,7 +57,7 @@ class TuringAdapter {
       try {
         const unsub = await this.api.query.system.events(async (events) => {
           const foundTaskEvents = _.filter(_.map(events, ({ phase, event: { data, method, section } }) => {
-            if (section === 'automationPrice' && phase.toHuman()?.ApplyExtrinsic === '2') { // TaskScheduled, TaskExecuted, TaskCancelled events contain the same data for now
+            if (section === 'automationPrice') { // TaskScheduled, TaskExecuted, TaskCancelled events contain the same data for now
               console.log('Found task event', phase.toHuman(), `${section}.${method} ${data.toString()}`);
               const eventData = data.toHuman(); // {who: '6757gffjjMc7E4sZJtkfvq8fmMzH2NPRrEL3f3tqpr2PzXYq', taskId: '1775-0-1'}
               return { section, method, data: { ownerId: eventData.who, taskId: eventData.taskId } };
