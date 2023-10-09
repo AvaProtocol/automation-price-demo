@@ -316,7 +316,7 @@ function ArthSwapApp() {
                         paddingBottom: 18,
                       }}
                     >
-                      Task List
+                      Open Orders and History
                     </div>
                     <TaskList />
                   </Container>

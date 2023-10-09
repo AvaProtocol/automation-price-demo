@@ -106,7 +106,7 @@ class TuringAdapter {
             if (section === 'automationPrice' && method === 'AssetUpdated' && phase.toHuman()?.ApplyExtrinsic === '2') {
               console.log('Found price event', phase.toHuman(), `${section}.${method} ${data.toString()}`);
 
-              const eventData = data.toHuman(); // {who: '66RxduFvFDjfQjYJRnX4ywgYm6w2SAiHqtqGKgY1qdfYCj3g', chain: 'shibuya', exchange: 'arthswap', asset1: 'WRSTR', asset2: 'USDT', price: '80' }
+              const eventData = data.toHuman(); // {who: '66RxduFvFDjfQjYJRnX4ywgYm6w2SAiHqtqGKgY1qdfYCj3g', chain: 'shibuya', exchange: 'arthswap', asset1: 'WRSTR', asset2: 'USDC', price: '80' }
               return { section, method, data: { price: eventData.price, symbols: [eventData.asset1, eventData.asset2] } };
             }
 

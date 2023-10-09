@@ -110,6 +110,7 @@ function WalletConnectPolkadotjs() {
   const onClickDisconnect = useCallback(async () => {
     setAccounts([]);
     setWallet(null);
+    localStorage.removeItem(STORAGE_KEY_WALLET);
   }, []);
 
   const onClickPolkadotkWalletSelectSubmitted = useCallback(async () => {

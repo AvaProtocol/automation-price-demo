@@ -11,7 +11,7 @@ import Keyring from '@polkadot/keyring';
 import { useNetwork } from '../context/Network';
 import { useWalletPolkadot } from '../context/WalletPolkadot';
 import {
-  sendExtrinsic, getDerivativeAccountV2, getDerivativeAccountV3,
+  sendExtrinsic, getDerivativeAccountV2, getDerivativeAccountV3, trimString, getEncodedCall,
 } from '../common/utils';
 import SignButton from './SignButton';
 
@@ -35,7 +35,7 @@ function AutomationTimeComponent() {
   /**
    * Use MetaMask to schedule a Swap transaction via XCM
    */
-  const scheduleByPrice = useCallback(async () => {
+  async function scheduleByPrice(triggerFunction, triggerParam, cb) {
     if (_.isNull(wallet)) {
       message.error('Wallet needs to be connected first.');
       return;
@@ -184,12 +184,10 @@ function AutomationTimeComponent() {
         chain: 'shibuya',
         exchange: 'arthswap',
         asset1: 'WRSTR',
-        asset2: 'USDT',
+        asset2: 'USDC',
       };
 
-      const triggerParam = [100];
       const expiredAt = moment().add(7, 'days').unix();
-      const triggerFunction = 'gt';
 
       const taskExtrinsic = turingApi.tx.automationPrice.scheduleXcmpTaskThroughProxy(
         automationPriceAsset.chain,
@@ -208,7 +206,7 @@ function AutomationTimeComponent() {
         wallet?.address,
       );
 
-      console.log('Task extrinsic encoded call:', u8aToHex(taskExtrinsic.method.toU8a()));
+      console.log('Task extrinsic encoded call:', getEncodedCall(taskExtrinsic));
       const encodedCallWeightRaw = (await taskExtrinsic.paymentInfo(wallet?.address)).weight;
       const encodedCallWeight = { refTime: encodedCallWeightRaw.refTime.unwrap(), proofSize: encodedCallWeightRaw.proofSize.unwrap() };
       const instructionCount = 4;
@@ -259,7 +257,19 @@ function AutomationTimeComponent() {
       console.log('Added extrinsic to batchExtrinsics, extrinsic: ', extrinsic.method.toHex());
 
       console.log('Send batchExtrinsics to chain: ', batchExtrinsics.map((item) => item.method.toHex()));
-      await parachainApi.tx.utility.batch(batchExtrinsics).signAndSend(wallet?.address, { nonce: -1, signer: wallet?.signer });
+
+      // TODO: we should wrap this up in send extrinsic so we can use await
+      parachainApi.tx.utility.batch(batchExtrinsics).signAndSend(wallet?.address, { nonce: -1, signer: wallet?.signer }, ({ events = [], status }) => {
+        console.log('current tx status', status.type);
+
+        events.forEach(({ phase, event: { data, method, section } }) => {
+          console.log(`${phase.toString()} : ${section}.${method} ${data.toString()}`);
+        });
+
+        if (status.isFinalized) {
+          cb(events);
+        }
+      });
 
       // console.log('Listen automationPrice.TaskScheduled event on Turing...');
       // const listenResult = await listenEvents(turingApi, 'automationPrice', 'TaskScheduled', undefined, 60000);
@@ -285,7 +295,7 @@ function AutomationTimeComponent() {
     } catch (error) {
       console.log(error);
     }
-  }, [wallet, adapters]);
+  }
 
   const onClickBtnLimitOrder = useCallback(async () => {
     setIsModalOpen(true);
@@ -296,16 +306,6 @@ function AutomationTimeComponent() {
     setIsSuccess(false);
     setIsLoading(false);
   };
-
-  // const handleOk = async () => {
-  //   setIsLoading(true);
-
-  //   console.log('handleOk. placing the limit order', inputNumber);
-  //   await scheduleByPrice();
-
-  //   setIsSuccess(true);
-  //   setIsLoading(false);
-  // };
 
   const onChangeInputNumber = (value) => {
     setInputNumber(_.toNumber(value));
@@ -324,9 +324,19 @@ function AutomationTimeComponent() {
 
   const onFinish = async (values) => {
     console.log('Received values of form: ', values);
-    await scheduleByPrice();
-    message.success('Limit order has been placed.');
-    setIsSuccess(true);
+
+    const price = values['input-number-limit-price'];
+
+    if (_.isNumber(price)) {
+      setIsLoading(true);
+
+      scheduleByPrice('gt', [price], (result) => {
+        console.log('scheduleByPrice tx submission result', result);
+        setIsLoading(false);
+        message.success('Limit order has been placed.');
+        setIsSuccess(true);
+      });
+    }
   };
 
   const onCreate = (values) => {
@@ -368,7 +378,7 @@ function AutomationTimeComponent() {
             name="place_limit_order"
             {...formItemLayout}
             initialValues={{
-              'select-buy-sell': ['limit-buy'],
+              'select-buy-sell': ['limit-sell'],
               'input-number-limit-price': 90,
               'input-number-amount': 36,
             }}
@@ -382,10 +392,10 @@ function AutomationTimeComponent() {
             </Form.Item>
 
             <Form.Item label="Exchange">
-              <span className="ant-form-text">ArthSwap (Contract address)</span>
+              <span className="ant-form-text">ArthSwap ({trimString('0xA17E7Ba271dC2CC12BA5ECf6D178bF818A6D76EB', 16)})</span>
             </Form.Item>
 
-            <Form.Item label="Execute Call">
+            <Form.Item label="Method">
               <span className="ant-form-text">swapExactETHForTokens</span>
             </Form.Item>
 
@@ -404,7 +414,7 @@ function AutomationTimeComponent() {
               <Space direction="vertical">
                 <span className="ant-form-text" style={{ marginLeft: 8 }}> {selectOption?.[0] === 'limit-buy' ? 'When price is below' : 'When price is over' }  </span>
                 <Form.Item name="input-number-limit-price" noStyle>
-                  <InputNumber min={80} max={120} step={10} onChange={onChangeInputNumber} addonAfter="WRSTR / USDC" />
+                  <InputNumber min={80} max={140} step={10} onChange={onChangeInputNumber} addonAfter="WRSTR / USDC" />
                 </Form.Item>
               </Space>
             </Form.Item>
@@ -425,7 +435,7 @@ function AutomationTimeComponent() {
 
             <Form.Item wrapperCol={{ span: 12, offset: 6 }}>
               <Space size="large">
-                <Button type="primary" htmlType="submit">
+                <Button type="primary" htmlType="submit" loading={isLoading}>
                   Confirm
                 </Button>
                 <Button htmlType="reset">Reset</Button>

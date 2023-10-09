@@ -158,6 +158,14 @@ function trimString(str, maxLength) {
   return trimmedStr;
 }
 
+/**
+ * Return the hex string of an encoded call for print-out purpose
+ * @param {*} extrinsic
+ */
+function getEncodedCall(extrinsic) {
+  return u8aToHex(extrinsic.method.toU8a());
+}
+
 export {
-  listenEvents, sendExtrinsic, getHourlyTimestamp, getDerivativeAccountV2, getDerivativeAccountV3, trimString,
+  listenEvents, sendExtrinsic, getHourlyTimestamp, getDerivativeAccountV2, getDerivativeAccountV3, trimString, getEncodedCall,
 };

@@ -5,7 +5,7 @@ import PropTypes from 'prop-types'; // Import PropTypes
 import {
   Butto as AntButton, Space, message, Table, Tag,
 } from 'antd';
-import Item from 'antd/es/list/Item';
+import { u8aToHex } from '@polkadot/util';
 import BN from 'bn.js';
 import SignButton from './SignButton';
 import Task from '../models/task';
@@ -45,10 +45,13 @@ function TaskList() {
    * @param {*} map The map of TaskMap
    */
   const setDisplayArrayByTaskMap = (map) => {
+    console.log('setDisplayArrayByTaskMap', map, 'map.values()', Array.from(map.values()));
     const taskItems = _.map(Array.from(map.values()), (item) => {
       const taskItem = new Task(item);
       return taskItem.toJson();
     });
+
+    console.log('setDisplayArrayByTask.taskItems', taskItems);
 
     // Update Table View right away for displaytrimString
     const formattedArray = taskItems.map(({ taskId, ownerId, ...rest }) => ({
@@ -92,7 +95,7 @@ function TaskList() {
       // Subscribe to automationPrice.tasks changes based on system events
       turingAdapter?.subscribeTasks((updatedTasks) => {
         if (!_.isEmpty(updatedTasks)) {
-          // console.log('subscribeTasks.updatedTasks', updatedTasks);
+          console.log('subscribeTasks.updatedTasks', updatedTasks);
 
           // Handle TaskCancelled, TaskExecuted, and TaskScheduled events,
           _.each(updatedTasks, (updatedTask) => {
@@ -175,7 +178,8 @@ function TaskList() {
     const dest = { V3: { parents: 1, interior: { X1: { Parachain: turingParaId } } } };
     const xcmExtrinsic = parachainApi.tx.polkadotXcm.send(dest, xcmMessage);
 
-    console.log('cancelExtrinsic.method.toHex()', cancelExtrinsic.method.toHex());
+    console.log('Cancel extrinsic encoded call:', u8aToHex(cancelExtrinsic.method.toU8a()));
+    console.log('Cancel extrinsic.method.toHex()', cancelExtrinsic.method.toHex());
     console.log('xcmExtrinsic.method.toHex()', xcmExtrinsic.method.toHex());
 
     await xcmExtrinsic.signAndSend(wallet?.address, { nonce: -1, signer: wallet?.signer });
@@ -219,12 +223,14 @@ function TaskList() {
         key="action"
         render={(record) => (
           <Space size="middle">
+            {record.status === 'Pending' && (
             <SignButton
               onClickCallback={() => onClickCancel(record)}
               wallet={wallet}
               tooltip="Connect wallet to delete task"
             >Cancel
             </SignButton>
+            )}
           </Space>
         )}
       />

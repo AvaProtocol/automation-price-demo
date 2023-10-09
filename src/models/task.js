@@ -7,7 +7,7 @@ class Task {
     this.triggerFunction = raw.triggerFunction || 'gt';
     this.triggerParams = raw.triggerParams || ['100'];
     this.action = raw.action;
-    this.assetPair = raw.assetPair || ['WRSTR', 'USDT'];
+    this.assetPair = raw.assetPair || ['WRSTR', 'USDC'];
     this.status = raw.status || 'Pending';
     this.raw = raw;
   }

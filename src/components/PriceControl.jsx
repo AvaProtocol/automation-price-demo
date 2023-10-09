@@ -12,6 +12,7 @@ import { MOMENT_FORMAT } from '../config';
 import { sendExtrinsic } from '../common/utils';
 
 const DEFAULT_INPUT_NUMBER = 80;
+const INITIAL_PRICE = 80;
 
 function PriceControl({
   priceArray, setPriceArray, currentPrice, setCurrentPrice, step,
@@ -72,10 +73,10 @@ function PriceControl({
     console.log('onClickInitAsset is called');
 
     const api = adapters[0]?.api;
-    const extrinsicInitAsset = api.tx.automationPrice.initializeAsset('shibuya', 'arthswap', 'WRSTR', 'USDT', '18', [wallet?.address]);
+    const extrinsicInitAsset = api.tx.automationPrice.initializeAsset('shibuya', 'arthswap', 'WRSTR', 'USDC', '18', [wallet?.address]);
     // sendExtrinsic(api, extrinsic, wallet?.address, wallet?.signer);
     const submittedAt = moment().unix();
-    const extrinsicUpdatePrice = api.tx.automationPrice.updateAssetPrices(['shibuya'], ['arthswap'], ['WRSTR'], ['USDT'], [currentPrice?.price], [submittedAt], [0]);
+    const extrinsicUpdatePrice = api.tx.automationPrice.updateAssetPrices(['shibuya'], ['arthswap'], ['WRSTR'], ['USDC'], [currentPrice?.price || INITIAL_PRICE], [submittedAt], [0]);
 
     const batchExtrinsics = [extrinsicInitAsset, extrinsicUpdatePrice];
     await api.tx.utility.batch(batchExtrinsics).signAndSend(wallet?.address, { nonce: -1, signer: wallet?.signer }, ({ events = [], status }) => {
@@ -95,7 +96,7 @@ function PriceControl({
     console.log('onClickDeleteAsset is called');
 
     const api = adapters[0]?.api;
-    const extrinsic = api.tx.automationPrice.deleteAsset('shibuya', 'arthswap', 'WRSTR', 'USDT');
+    const extrinsic = api.tx.automationPrice.deleteAsset('shibuya', 'arthswap', 'WRSTR', 'USDC');
 
     await extrinsic.signAndSend(wallet?.address, { nonce: -1, signer: wallet?.signer }, ({ events = [], status }) => {
       if (status.isInBlock) {
@@ -113,7 +114,7 @@ function PriceControl({
   const updatePrice = async (value, api, { address, signer }) => {
     console.log('onClickUpdatePrice is called, value:', value);
     const submittedAt = moment().unix();
-    const extrinsicUpdatePrice = api.tx.automationPrice.updateAssetPrices(['shibuya'], ['arthswap'], ['WRSTR'], ['USDT'], [value], [submittedAt], [0]);
+    const extrinsicUpdatePrice = api.tx.automationPrice.updateAssetPrices(['shibuya'], ['arthswap'], ['WRSTR'], ['USDC'], [value], [submittedAt], [0]);
 
     console.log('extrinsicUpdatePrice.method.toHex()', extrinsicUpdatePrice.method.toHex());
 
