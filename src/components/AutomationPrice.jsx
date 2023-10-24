@@ -176,7 +176,9 @@ function AutomationTimeComponent() {
         proofSize: taskEncodedCallWeight.proofSize.add(astarInstrcutionWeight.proofSize.muln(instructionCountOnTuring)),
       };
       const fee = await parachainApi.call.transactionPaymentApi.queryWeightToFee(taskOverallWeight);
-      const scheduleFeeLocation = { V3: { parents: 1, interior: { X1: { Parachain: parachainParaId } } } };
+
+      const scheduleFeeLocation = { parents: 1, interior: { X1: { Parachain: parachainParaId } } };
+
       const executionFee = { assetLocation: { V3: { parents: 1, interior: { X1: { Parachain: parachainParaId } } } }, amount: fee };
       const rocstarLocation = { parents: 1, interior: { X1: { Parachain: parachainParaId } } };
 

@@ -59,8 +59,8 @@ class TuringAdapter {
           const foundTaskEvents = _.filter(_.map(events, ({ phase, event: { data, method, section } }) => {
             if (section === 'automationPrice') { // TaskScheduled, TaskExecuted, TaskCancelled events contain the same data for now
               console.log('Found task event', phase.toHuman(), `${section}.${method} ${data.toString()}`);
-              const eventData = data.toHuman(); // {who: '6757gffjjMc7E4sZJtkfvq8fmMzH2NPRrEL3f3tqpr2PzXYq', taskId: '1775-0-1'}
-              return { section, method, data: { ownerId: eventData.who, taskId: eventData.taskId } };
+              const eventData = data.toHuman(); // {ownerId: '6757gffjjMc7E4sZJtkfvq8fmMzH2NPRrEL3f3tqpr2PzXYq', taskId: '1775-0-1'}
+              return { section, method, data: { ownerId: eventData.ownerId, taskId: eventData.taskId } };
             }
 
             return undefined;
@@ -87,7 +87,7 @@ class TuringAdapter {
         // console.log('values[0][1].toHuman()', values[0][1].toHuman());
         const keyObj = values[0][0].toHuman();
         const priceObj = values[0][1].toHuman();
-        cb({ price: priceObj.amount, symbols: keyObj[2] });
+        cb({ price: priceObj.value, symbols: keyObj[2] });
       } catch (ex) {
         console.log('subscribePrice exception', ex);
       }
@@ -106,7 +106,7 @@ class TuringAdapter {
             if (section === 'automationPrice' && method === 'AssetUpdated' && phase.toHuman()?.ApplyExtrinsic === '2') {
               console.log('Found price event', phase.toHuman(), `${section}.${method} ${data.toString()}`);
 
-              const eventData = data.toHuman(); // {who: '66RxduFvFDjfQjYJRnX4ywgYm6w2SAiHqtqGKgY1qdfYCj3g', chain: 'shibuya', exchange: 'arthswap', asset1: 'WRSTR', asset2: 'USDC', price: '80' }
+              const eventData = data.toHuman(); // {ownerId: '66RxduFvFDjfQjYJRnX4ywgYm6w2SAiHqtqGKgY1qdfYCj3g', chain: 'shibuya', exchange: 'arthswap', asset1: 'WRSTR', asset2: 'USDC', price: '80' }
               return { section, method, data: { price: eventData.price, symbols: [eventData.asset1, eventData.asset2] } };
             }
 
